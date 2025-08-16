@@ -45,38 +45,53 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
         "freshness": "all"
     }
     
+    # Retry logic with exponential backoff for rate limiting
+    max_retries = 5
+    base_delay = 1.0  # Start with 1 second
+    
     async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            response = await client.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            # Extract and format results
-            results = []
-            if "web" in data and "results" in data["web"]:
-                for result in data["web"]["results"]:
-                    results.append({
-                        "title": result.get("title", ""),
-                        "url": result.get("url", ""),
-                        "description": result.get("description", ""),
-                        "published": result.get("age", ""),
-                        "favicon": result.get("profile", {}).get("img", "")
-                    })
-            
-            return {
-                "query": query,
-                "results": results,
-                "total_results": len(results),
-                "api_response": data
-            }
-            
-        except httpx.TimeoutException:
-            raise httpx.HTTPError("Search request timed out")
-        except httpx.HTTPStatusError as e:
-            raise httpx.HTTPError(f"Search API returned status {e.response.status_code}: {e.response.text}")
-        except Exception as e:
-            raise httpx.HTTPError(f"Search request failed: {str(e)}")
+        for attempt in range(max_retries + 1):
+            try:
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # Extract and format results
+                results = []
+                if "web" in data and "results" in data["web"]:
+                    for result in data["web"]["results"]:
+                        results.append({
+                            "title": result.get("title", ""),
+                            "url": result.get("url", ""),
+                            "description": result.get("description", ""),
+                            "published": result.get("age", ""),
+                            "favicon": result.get("profile", {}).get("img", "")
+                        })
+                
+                return {
+                    "query": query,
+                    "results": results,
+                    "total_results": len(results),
+                    "api_response": data
+                }
+                
+            except httpx.TimeoutException:
+                raise httpx.HTTPError("Search request timed out")
+            except httpx.HTTPStatusError as e:
+                # Handle rate limiting with exponential backoff
+                if e.response.status_code == 429 and attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)  # Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                    print(f"Rate limited, retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries + 1})")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    raise httpx.HTTPError(f"Search API returned status {e.response.status_code}: {e.response.text}")
+            except Exception as e:
+                raise httpx.HTTPError(f"Search request failed: {str(e)}")
+        
+        # If we get here, all retries failed
+        raise httpx.HTTPError("Maximum retries exceeded for rate limited requests")
 
 
 def safe_print(text: str) -> None:
