@@ -4,11 +4,12 @@ from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 import httpx
 import sys
+from search_cache import get_cache
 
 
 async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
     """
-    Perform a web search using the Brave Search API.
+    Perform a web search using the Brave Search API with caching.
     
     Args:
         query: The search query string
@@ -21,6 +22,12 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
         ValueError: If BRAVE_API_KEY environment variable is not set
         httpx.HTTPError: If the API request fails
     """
+    # Check cache first
+    cache = get_cache()
+    cached_results = cache.get(query, count)
+    if cached_results is not None:
+        return cached_results
+    
     api_key = os.getenv("BRAVE_API_KEY")
     if not api_key:
         raise ValueError("BRAVE_API_KEY environment variable is required")
@@ -69,12 +76,18 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
                             "favicon": result.get("profile", {}).get("img", "")
                         })
                 
-                return {
+                # Prepare results to return and cache
+                search_results = {
                     "query": query,
                     "results": results,
                     "total_results": len(results),
                     "api_response": data
                 }
+                
+                # Cache the results for future use
+                cache.set(query, count, search_results)
+                
+                return search_results
                 
             except httpx.TimeoutException:
                 raise httpx.HTTPError("Search request timed out")
