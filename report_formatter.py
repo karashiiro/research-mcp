@@ -46,7 +46,7 @@ class ReportFormatter:
         ---
 
         ## 1. Executive Summary
-        [Provide a 150-200 word executive summary that captures the key insights]
+        [Provide a word executive summary that captures the key insights]
 
         ---
 
@@ -101,13 +101,10 @@ class ReportFormatter:
 
         [List all sources in numbered format]
 
-        CRITICAL FORMATTING REQUIREMENTS:
-        - Use ONLY the source material provided - do not add information not found in sources
-        - Cite all claims with source numbers [1], [2], etc.
-        - Maintain consistent table formatting
-        - Keep executive summary to 150-200 words
-        - Use markdown formatting exactly as shown above
-        - Include source URLs where available
+FORMATTING REQUIREMENTS:
+        - Follow the exact format shown above
+        - Use only information from the provided sources
+        - Keep executive summary concise and factual
         """
         
         return prompt

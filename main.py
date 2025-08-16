@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import re
-import unicodedata
 from datetime import datetime
 from typing import List, Dict, Any
 from dotenv import load_dotenv
@@ -26,7 +25,7 @@ if "OTEL_EXPORTER_OTLP_ENDPOINT" in os.environ:
 
 # Configure strands logging to write to file instead of console
 def setup_logging():
-    """Configure strands logging to write to files to avoid unicode console issues."""
+    """Configure strands logging to write to files."""
     # Create logs directory if it doesn't exist
     os.makedirs("logs", exist_ok=True)
     
@@ -57,7 +56,7 @@ research_logger = setup_logging()
 
 
 def get_model():
-    temperature = float(os.getenv("MODEL_TEMPERATURE", 0.3))
+    temperature = float(os.getenv("MODEL_TEMPERATURE", 0.0))
     if os.getenv("MODEL_TYPE") == "ollama":
         return OllamaModel(
             host=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
@@ -67,7 +66,8 @@ def get_model():
     else:
         return BedrockModel(
             model_id=os.getenv("BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"),
-            temperature=temperature
+            temperature=temperature,
+            max_tokens=4000
         )
 
 
@@ -89,13 +89,29 @@ class ResearchOrchestrator:
         # Create model instance for all agents
         self.model = get_model()
         
-        # Create the lead researcher agent
-        self.lead_researcher = Agent(model=self.model)
+        # Create the lead researcher agent with system prompt
+        self.lead_researcher = Agent(
+            model=self.model,
+            system_prompt="You are a lead researcher who generates JSON lists of research subtopics. Be concise and direct. Avoid excessive reasoning.",
+        )
         
-        # Pool of subagents for research tasks
+        # Pool of subagents for research tasks with system prompts
+        research_system_prompt = """You are a professional research agent. Your task is to:
+- Produce research reports using ONLY the provided source material
+- Be concise and factual - avoid excessive reasoning or internal thoughts
+- Cite all claims with source numbers [1], [2], etc.
+- Maintain consistent table formatting
+- Keep executive summary brief
+- Use markdown formatting exactly as shown
+- Include source URLs where available
+- Focus on extracting key information from sources"""
+        
         self.subagents = []
         for _ in range(5):  # Create 5 subagents
-            self.subagents.append(Agent(model=self.model))
+            self.subagents.append(Agent(
+                model=self.model,
+                system_prompt=research_system_prompt,
+            ))
     
     def generate_subtopics(self, main_topic: str) -> List[str]:
         """
@@ -163,7 +179,14 @@ class ResearchOrchestrator:
             # Extract all research content
             research_summaries = []
             for result in research_results:
-                summary_text = "".join(map(extract_content_text, result['research_summary'].message["content"]))
+                # Handle both dict and object response formats
+                research_summary = result['research_summary']
+                if hasattr(research_summary, 'message'):
+                    summary_text = "".join(map(extract_content_text, research_summary.message["content"]))
+                else:
+                    # Handle dict format
+                    summary_text = "".join(map(extract_content_text, research_summary.get("message", {}).get("content", [])))
+                
                 research_summaries.append({
                     "subtopic": result["subtopic"],
                     "content": summary_text,
@@ -355,7 +378,7 @@ async def main():
     """
     orchestrator = ResearchOrchestrator()
     
-    test_topic = "Quantum Computing Applications in Machine Learning"
+    test_topic = "Imaginarium Theatre Optimization Strategies in Genshin Impact"
     
     print("🚀 Research Orchestration System Test")
     print("=" * 50)
@@ -381,7 +404,12 @@ async def main():
             print(f"Agent ID: {research['agent_id']}")
             
             # Extract text content safely from AI response
-            summary_text = "".join(map(extract_content_text, research['research_summary'].message["content"]))
+            research_summary = research['research_summary']
+            if hasattr(research_summary, 'message'):
+                summary_text = "".join(map(extract_content_text, research_summary.message["content"]))
+            else:
+                # Handle dict format
+                summary_text = "".join(map(extract_content_text, research_summary.get("message", {}).get("content", [])))
             print(f"Research Summary Preview: {summary_text[:200]}...")
             # Don't print full summary since we have master synthesis now
         
