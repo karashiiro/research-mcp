@@ -216,7 +216,7 @@ CRITICAL REQUIREMENTS:
 
 Research data from {len(research_summaries)} subtopics:
 
-{chr(10).join([f"SUBTOPIC: {r['subtopic']}{chr(10)}{r['content'][:500]}...{chr(10)}" for r in research_summaries])}
+{chr(10).join([f"SUBTOPIC: {r['subtopic']}{chr(10)}{r['content']}{chr(10)}" for r in research_summaries])}
 
 Output format:
 
