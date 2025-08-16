@@ -90,15 +90,33 @@ class ResearchOrchestrator:
         self.model = get_model()
         
         # Create the lead researcher agent with system prompt
+        lead_researcher_system_prompt = """You are a lead researcher who performs two main tasks:
+1. Generate JSON lists of research subtopics
+2. Create master synthesis reports
+
+CRITICAL REQUIREMENTS:
+- NEVER generate internal reasoning, thinking, or analysis commentary
+- NEVER include reasoning content or signature fields
+- Output ONLY the requested content in the specified format
+- Be direct, factual, and concise
+- Focus on synthesis and organization, not interpretation
+- Use ONLY information provided in source materials
+- Maintain consistent formatting and structure"""
+
         self.lead_researcher = Agent(
             model=self.model,
-            system_prompt="You are a lead researcher who generates JSON lists of research subtopics. Be concise and direct. Avoid excessive reasoning.",
+            system_prompt=lead_researcher_system_prompt,
         )
         
         # Pool of subagents for research tasks with system prompts
-        research_system_prompt = """You are a professional research agent. Your task is to:
-- Produce research reports using ONLY the provided source material
-- Be concise and factual - avoid excessive reasoning or internal thoughts
+        research_system_prompt = """You are a professional research agent. Your task is to produce research reports.
+
+CRITICAL REQUIREMENTS:
+- NEVER generate reasoning content, thinking blocks, or analysis commentary
+- NEVER include <reasoning> tags or internal thought processes  
+- Output ONLY the final research report content
+- Use ONLY the provided source material
+- Be direct and factual - no internal reasoning
 - Cite all claims with source numbers [1], [2], etc.
 - Maintain consistent table formatting
 - Keep executive summary brief
@@ -193,70 +211,35 @@ class ResearchOrchestrator:
                     "sources": result.get("search_results", {}).get("results", [])
                 })
             
-            # Create synthesis prompt
-            synthesis_prompt = f"""
-            Create a comprehensive master synthesis report for: "{main_topic}"
-            
-            You have been provided with detailed research on {len(research_summaries)} subtopics.
-            Your task is to synthesize these into a cohesive master report.
-            
-            SUBTOPIC RESEARCH:
-            {chr(10).join([f"{'='*50}{chr(10)}SUBTOPIC: {r['subtopic']}{chr(10)}{'='*50}{chr(10)}{r['content']}{chr(10)}" for r in research_summaries])}
-            
-            Create a master synthesis using this structure:
+            # Create simplified synthesis prompt
+            synthesis_prompt = f"""Write a master synthesis report for: {main_topic}
 
-            # Comprehensive Research Report: {main_topic}
-            **Date:** {datetime.now().strftime('%Y-%m-%d')}
+Research data from {len(research_summaries)} subtopics:
 
-            ---
+{chr(10).join([f"SUBTOPIC: {r['subtopic']}{chr(10)}{r['content'][:500]}...{chr(10)}" for r in research_summaries])}
 
-            ## Executive Summary
-            [300-400 word synthesis of key findings across all subtopics]
+Output format:
 
-            ---
+# Comprehensive Research Report: {main_topic}
+**Date:** {datetime.now().strftime('%Y-%m-%d')}
 
-            ## 1. Introduction & Background
-            [Overview of {main_topic} and why it matters]
+## Executive Summary
+[Combine key findings from all subtopics - 3-4 sentences]
 
-            ---
+## Key Findings by Area
+{chr(10).join([f"### {r['subtopic']}{chr(10)}- Main finding{chr(10)}- Key insight{chr(10)}" for r in research_summaries])}
 
-            ## 2. Key Findings by Research Area
-            
-            {chr(10).join([f"### 2.{i+1} {r['subtopic']}{chr(10)}- [Key insights from this area]{chr(10)}- [Important developments]{chr(10)}" for i, r in enumerate(research_summaries)])}
+## Conclusion
+[Overall summary - 2-3 sentences]
 
-            ---
+## Sources
+[List all unique sources from research]
 
-            ## 3. Cross-Cutting Themes & Patterns
-            [Identify connections and patterns across all subtopic areas]
-
-            ---
-
-            ## 4. Current State of the Field
-            [Synthesis of trends, developments, and current capabilities]
-
-            ---
-
-            ## 5. Future Directions & Implications
-            [Combined implications, applications, and future outlook]
-
-            ---
-
-            ## 6. Conclusion
-            [Overall synthesis and key takeaways about {main_topic}]
-
-            ---
-
-            ## 7. Comprehensive Bibliography
-            [All sources from subtopic research, deduplicated and organized]
-
-            SYNTHESIS REQUIREMENTS:
-            - Draw meaningful connections between different research areas
-            - Identify overarching themes and patterns
-            - Avoid simple repetition of subtopic content
-            - Focus on synthesis rather than summarization
-            - Maintain consistent citation format
-            - Only include information that was found in the source research
-            """
+Requirements:
+- Use only provided research content
+- Keep sections brief and direct
+- Combine information, don't repeat it
+- Use factual language only"""
             
             # Generate synthesis using lead researcher
             synthesis_response = self.lead_researcher(synthesis_prompt)
