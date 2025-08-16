@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import unicodedata
+from datetime import datetime
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from strands import Agent
@@ -13,6 +14,7 @@ from strands.models.bedrock import BedrockModel
 from strands.models.model import Model
 from strands.models.ollama import OllamaModel
 from web_search import web_search
+from report_formatter import ReportFormatter
 
 # Load environment variables from .env file
 load_dotenv()
@@ -153,45 +155,148 @@ class ResearchOrchestrator:
         
         return subtopics
     
+    def create_master_synthesis(self, main_topic: str, research_results: List[Dict[str, Any]]) -> str:
+        """
+        Create a master synthesis report combining all subtopic research
+        """
+        try:
+            # Extract all research content
+            research_summaries = []
+            for result in research_results:
+                summary_text = "".join(map(extract_content_text, result['research_summary'].message["content"]))
+                research_summaries.append({
+                    "subtopic": result["subtopic"],
+                    "content": summary_text,
+                    "sources": result.get("search_results", {}).get("results", [])
+                })
+            
+            # Create synthesis prompt
+            synthesis_prompt = f"""
+            Create a comprehensive master synthesis report for: "{main_topic}"
+            
+            You have been provided with detailed research on {len(research_summaries)} subtopics.
+            Your task is to synthesize these into a cohesive master report.
+            
+            SUBTOPIC RESEARCH:
+            {chr(10).join([f"{'='*50}{chr(10)}SUBTOPIC: {r['subtopic']}{chr(10)}{'='*50}{chr(10)}{r['content']}{chr(10)}" for r in research_summaries])}
+            
+            Create a master synthesis using this structure:
+
+            # Comprehensive Research Report: {main_topic}
+            **Date:** {datetime.now().strftime('%Y-%m-%d')}
+
+            ---
+
+            ## Executive Summary
+            [300-400 word synthesis of key findings across all subtopics]
+
+            ---
+
+            ## 1. Introduction & Background
+            [Overview of {main_topic} and why it matters]
+
+            ---
+
+            ## 2. Key Findings by Research Area
+            
+            {chr(10).join([f"### 2.{i+1} {r['subtopic']}{chr(10)}- [Key insights from this area]{chr(10)}- [Important developments]{chr(10)}" for i, r in enumerate(research_summaries)])}
+
+            ---
+
+            ## 3. Cross-Cutting Themes & Patterns
+            [Identify connections and patterns across all subtopic areas]
+
+            ---
+
+            ## 4. Current State of the Field
+            [Synthesis of trends, developments, and current capabilities]
+
+            ---
+
+            ## 5. Future Directions & Implications
+            [Combined implications, applications, and future outlook]
+
+            ---
+
+            ## 6. Conclusion
+            [Overall synthesis and key takeaways about {main_topic}]
+
+            ---
+
+            ## 7. Comprehensive Bibliography
+            [All sources from subtopic research, deduplicated and organized]
+
+            SYNTHESIS REQUIREMENTS:
+            - Draw meaningful connections between different research areas
+            - Identify overarching themes and patterns
+            - Avoid simple repetition of subtopic content
+            - Focus on synthesis rather than summarization
+            - Maintain consistent citation format
+            - Only include information that was found in the source research
+            """
+            
+            # Generate synthesis using lead researcher
+            synthesis_response = self.lead_researcher(synthesis_prompt)
+            
+            return "".join(map(extract_content_text, synthesis_response.message["content"]))
+            
+        except Exception as e:
+            research_logger.error(f"Failed to create master synthesis: {e}")
+            return f"Error creating master synthesis: {e}"
+    
     async def research_subtopic(self, subtopic: str, agent_id: int) -> Dict[str, Any]:
         """
-        Use a subagent to research a specific subtopic
+        Use a subagent to research a specific subtopic with improved error handling
         """
         agent = self.subagents[agent_id % len(self.subagents)]
         
-        # Perform real web search
-        raw_search_data = await web_search(subtopic, count=5)
+        try:
+            # Perform real web search with caching
+            raw_search_data = await web_search(subtopic, count=5)
+            
+            # Convert to expected format for compatibility
+            search_results = {
+                "query": subtopic,
+                "results": [
+                    {
+                        "title": result.get("title", ""),
+                        "snippet": result.get("description", ""),
+                        "url": result.get("url", "")
+                    }
+                    for result in raw_search_data.get("results", [])
+                ]
+            }
+            
+            # Log search success
+            research_logger.info(f"Search completed for '{subtopic}': {len(search_results['results'])} results found")
+            
+        except Exception as e:
+            # Handle search failures gracefully
+            research_logger.error(f"Search failed for '{subtopic}': {e}")
+            search_results = {
+                "query": subtopic,
+                "results": [],
+                "error": str(e)
+            }
         
-        # Convert to expected format for compatibility
-        search_results = {
-            "query": subtopic,
-            "results": [
-                {
-                    "title": result.get("title", ""),
-                    "snippet": result.get("description", ""),
-                    "url": result.get("url", "")
+        try:
+            # Create standardized research prompt with consistent formatting
+            prompt = ReportFormatter.create_standard_prompt(subtopic, search_results)
+            
+            # Generate research summary
+            research_summary = agent(prompt)
+            
+            # Log research completion
+            research_logger.info(f"Research completed for '{subtopic}' by agent {agent_id}")
+            
+        except Exception as e:
+            # Handle AI generation failures
+            research_logger.error(f"Research generation failed for '{subtopic}': {e}")
+            research_summary = {
+                "message": {
+                    "content": [{"text": f"Error generating research summary: {e}"}]
                 }
-                for result in raw_search_data.get("results", [])
-            ]
-        }
-        
-        # Create research prompt with search results
-        prompt = f"""
-        Research the topic: "{subtopic}"
-        
-        Based on these search results:
-        {json.dumps(search_results, indent=2)}
-        
-        Provide a comprehensive research summary that includes:
-        1. Key findings and insights
-        2. Important facts and statistics
-        3. Current trends or developments
-        4. Potential implications or applications
-        
-        Format your response as a structured research report.
-        """
-        
-        research_summary = agent(prompt)
+            }
         
         return {
             "subtopic": subtopic,
@@ -222,13 +327,23 @@ class ResearchOrchestrator:
         
         research_results = await asyncio.gather(*research_tasks)
         
-        # Step 3: Compile final report
-        print("\n📊 Compiling research results...")
+        # Step 3: Create master synthesis report
+        print("\n📊 Creating master synthesis report...")
+        master_synthesis = self.create_master_synthesis(main_topic, research_results)
+        
+        # Step 3.5: Add cross-references and table of contents
+        print("🔗 Adding cross-references and table of contents...")
+        master_synthesis = ReportFormatter.add_cross_references(master_synthesis, research_results)
+        
+        # Step 4: Compile final report
+        print("✅ Compiling final research package...")
         final_report = {
             "main_topic": main_topic,
             "subtopics_count": len(subtopics),
             "subtopic_research": research_results,
-            "summary": f"Comprehensive research conducted on '{main_topic}' across {len(subtopics)} specialized areas."
+            "master_synthesis": master_synthesis,
+            "summary": f"Comprehensive research conducted on '{main_topic}' across {len(subtopics)} specialized areas with master synthesis.",
+            "generated_at": datetime.now().isoformat()
         }
         
         return final_report
@@ -252,8 +367,15 @@ async def main():
         print(f"📋 Final Report Summary:")
         print(f"   Main Topic: {results['main_topic']}")
         print(f"   Subtopics Researched: {results['subtopics_count']}")
+        print(f"   Generated At: {results['generated_at']}")
         
-        print(f"\n📚 Detailed Research Results:")
+        # Display master synthesis
+        print(f"\n🎯 MASTER SYNTHESIS REPORT:")
+        print("=" * 60)
+        print(results['master_synthesis'])
+        print("=" * 60)
+        
+        print(f"\n📚 Individual Subtopic Research:")
         for i, research in enumerate(results['subtopic_research'], 1):
             print(f"\n--- Subtopic {i}: {research['subtopic']} ---")
             print(f"Agent ID: {research['agent_id']}")
@@ -261,8 +383,7 @@ async def main():
             # Extract text content safely from AI response
             summary_text = "".join(map(extract_content_text, research['research_summary'].message["content"]))
             print(f"Research Summary Preview: {summary_text[:200]}...")
-            print(f"\nFull Research Summary:")
-            print(summary_text)
+            # Don't print full summary since we have master synthesis now
         
     except Exception as e:
         print(f"❌ Error during research: {e}")
