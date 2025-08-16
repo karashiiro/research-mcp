@@ -1,17 +1,51 @@
 import asyncio
 import json
+import logging
 import os
 import re
+import unicodedata
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from strands import Agent
 from strands.types.content import ContentBlock
 from strands.models.bedrock import BedrockModel
+from strands.models.model import Model
 from strands.models.ollama import OllamaModel
 from web_search import web_search
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure strands logging to write to file instead of console
+def setup_logging():
+    """Configure strands logging to write to files to avoid unicode console issues."""
+    # Create logs directory if it doesn't exist
+    os.makedirs("logs", exist_ok=True)
+    
+    # Configure strands logger to write to file
+    strands_logger = logging.getLogger("strands")
+    strands_logger.setLevel(logging.DEBUG)
+    
+    # Create file handler for strands logs
+    file_handler = logging.FileHandler("logs/strands_agents.log", encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    ))
+    strands_logger.addHandler(file_handler)
+    
+    # Create file handler for research results
+    research_handler = logging.FileHandler("logs/research_results.log", encoding='utf-8')
+    research_handler.setFormatter(logging.Formatter("%(message)s"))
+    
+    # Create research logger
+    research_logger = logging.getLogger("research")
+    research_logger.setLevel(logging.INFO)
+    research_logger.addHandler(research_handler)
+    
+    return research_logger
+
+# Set up logging
+research_logger = setup_logging()
 
 
 def get_model():
@@ -38,7 +72,11 @@ class ResearchOrchestrator:
     Lead researcher agent that orchestrates research by generating subtopics
     and delegating them to subagents for detailed investigation
     """
-    
+
+    model: Model
+    lead_researcher: Agent
+    subagents: List[Agent]
+
     def __init__(self):
         # Create model instance for all agents
         self.model = get_model()
@@ -48,7 +86,7 @@ class ResearchOrchestrator:
         
         # Pool of subagents for research tasks
         self.subagents = []
-        for i in range(5):  # Create 5 subagents
+        for _ in range(5):  # Create 5 subagents
             self.subagents.append(Agent(model=self.model))
     
     def generate_subtopics(self, main_topic: str) -> List[str]:
@@ -191,13 +229,24 @@ class ResearchOrchestrator:
 
 
 def safe_print(text: str) -> None:
-    """Print text safely by handling unicode encoding issues on Windows."""
+    """Print text safely and also log to file with full unicode support."""
+    # Log to file with full unicode support
+    research_logger.info(text)
+    
+    # Also print to console with unicode handling
     try:
-        print(text)
-    except UnicodeEncodeError:
-        # Fallback to ASCII encoding for Windows console compatibility
-        safe_text = text.encode('ascii', errors='replace').decode('ascii')
-        print(safe_text)
+        # NFKD normalization decomposes characters and converts compatibility variants
+        normalized = unicodedata.normalize('NFKD', text)
+        # Convert to ASCII with fallback for any remaining unicode
+        ascii_text = normalized.encode('ascii', errors='replace').decode('ascii')
+        print(ascii_text)
+    except Exception:
+        # Ultimate fallback - just print what we can
+        try:
+            safe_text = str(text).encode('ascii', errors='replace').decode('ascii')
+            print(safe_text)
+        except Exception:
+            print("[Unable to display text due to encoding issues]")
 
 
 async def main():
@@ -223,7 +272,12 @@ async def main():
         for i, research in enumerate(results['subtopic_research'], 1):
             safe_print(f"\n--- Subtopic {i}: {research['subtopic']} ---")
             safe_print(f"Agent ID: {research['agent_id']}")
-            safe_print(f"Research Summary Preview: {research['research_summary'][:200]}...")
+            
+            # Extract text content safely from AI response
+            summary_text = "".join(map(extract_content_text, research['research_summary'].message["content"]))
+            safe_print(f"Research Summary Preview: {summary_text[:200]}...")
+            safe_print(f"\nFull Research Summary:")
+            safe_print(summary_text)
         
     except Exception as e:
         safe_print(f"❌ Error during research: {e}")
