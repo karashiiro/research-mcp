@@ -7,6 +7,7 @@ import unicodedata
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from strands import Agent
+from strands.telemetry import StrandsTelemetry
 from strands.types.content import ContentBlock
 from strands.models.bedrock import BedrockModel
 from strands.models.model import Model
@@ -15,6 +16,11 @@ from web_search import web_search
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Initialize Strands telemetry for logging
+strands_telemetry = StrandsTelemetry()
+if "OTEL_EXPORTER_OTLP_ENDPOINT" in os.environ:
+    strands_telemetry.setup_otlp_exporter()
 
 # Configure strands logging to write to file instead of console
 def setup_logging():
