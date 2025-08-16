@@ -204,17 +204,17 @@ class ResearchOrchestrator:
         """
         Orchestrate the complete research process
         """
-        safe_print(f"🔬 Starting research orchestration for: {main_topic}")
+        print(f"🔬 Starting research orchestration for: {main_topic}")
         
         # Step 1: Generate subtopics
-        safe_print("📝 Generating subtopics...")
+        print("📝 Generating subtopics...")
         subtopics = self.generate_subtopics(main_topic)
-        safe_print(f"✅ Generated {len(subtopics)} subtopics:")
+        print(f"✅ Generated {len(subtopics)} subtopics:")
         for i, subtopic in enumerate(subtopics, 1):
-            safe_print(f"   {i}. {subtopic}")
+            print(f"   {i}. {subtopic}")
         
         # Step 2: Research each subtopic in parallel
-        safe_print("\n🔍 Delegating research to subagents...")
+        print("\n🔍 Delegating research to subagents...")
         research_tasks = [
             self.research_subtopic(subtopic, i) 
             for i, subtopic in enumerate(subtopics)
@@ -223,7 +223,7 @@ class ResearchOrchestrator:
         research_results = await asyncio.gather(*research_tasks)
         
         # Step 3: Compile final report
-        safe_print("\n📊 Compiling research results...")
+        print("\n📊 Compiling research results...")
         final_report = {
             "main_topic": main_topic,
             "subtopics_count": len(subtopics),
@@ -234,27 +234,6 @@ class ResearchOrchestrator:
         return final_report
 
 
-def safe_print(text: str) -> None:
-    """Print text safely and also log to file with full unicode support."""
-    # Log to file with full unicode support
-    research_logger.info(text)
-    
-    # Also print to console with unicode handling
-    try:
-        # NFKD normalization decomposes characters and converts compatibility variants
-        normalized = unicodedata.normalize('NFKD', text)
-        # Convert to ASCII with fallback for any remaining unicode
-        ascii_text = normalized.encode('ascii', errors='replace').decode('ascii')
-        print(ascii_text)
-    except Exception:
-        # Ultimate fallback - just print what we can
-        try:
-            safe_text = str(text).encode('ascii', errors='replace').decode('ascii')
-            print(safe_text)
-        except Exception:
-            print("[Unable to display text due to encoding issues]")
-
-
 async def main():
     """
     Test the research orchestration system
@@ -263,30 +242,30 @@ async def main():
     
     test_topic = "Quantum Computing Applications in Machine Learning"
     
-    safe_print("🚀 Research Orchestration System Test")
-    safe_print("=" * 50)
+    print("🚀 Research Orchestration System Test")
+    print("=" * 50)
     
     try:
         results = await orchestrator.conduct_research(test_topic)
         
-        safe_print("\n✨ Research Complete!")
-        safe_print(f"📋 Final Report Summary:")
-        safe_print(f"   Main Topic: {results['main_topic']}")
-        safe_print(f"   Subtopics Researched: {results['subtopics_count']}")
+        print("\n✨ Research Complete!")
+        print(f"📋 Final Report Summary:")
+        print(f"   Main Topic: {results['main_topic']}")
+        print(f"   Subtopics Researched: {results['subtopics_count']}")
         
-        safe_print(f"\n📚 Detailed Research Results:")
+        print(f"\n📚 Detailed Research Results:")
         for i, research in enumerate(results['subtopic_research'], 1):
-            safe_print(f"\n--- Subtopic {i}: {research['subtopic']} ---")
-            safe_print(f"Agent ID: {research['agent_id']}")
+            print(f"\n--- Subtopic {i}: {research['subtopic']} ---")
+            print(f"Agent ID: {research['agent_id']}")
             
             # Extract text content safely from AI response
             summary_text = "".join(map(extract_content_text, research['research_summary'].message["content"]))
-            safe_print(f"Research Summary Preview: {summary_text[:200]}...")
-            safe_print(f"\nFull Research Summary:")
-            safe_print(summary_text)
+            print(f"Research Summary Preview: {summary_text[:200]}...")
+            print(f"\nFull Research Summary:")
+            print(summary_text)
         
     except Exception as e:
-        safe_print(f"❌ Error during research: {e}")
+        print(f"❌ Error during research: {e}")
 
 
 if __name__ == "__main__":

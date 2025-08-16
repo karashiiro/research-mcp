@@ -94,30 +94,20 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
         raise httpx.HTTPError("Maximum retries exceeded for rate limited requests")
 
 
-def safe_print(text: str) -> None:
-    """Print text safely by handling unicode encoding issues on Windows."""
-    try:
-        print(text)
-    except UnicodeEncodeError:
-        # Fallback to ASCII encoding for Windows console compatibility
-        safe_text = text.encode('ascii', errors='replace').decode('ascii')
-        print(safe_text)
-
-
 # Example usage
 async def main():
     load_dotenv()
     try:
         results = await web_search("python async programming", count=5)
-        safe_print(f"Found {results['total_results']} results for: {results['query']}")
+        print(f"Found {results['total_results']} results for: {results['query']}")
         
         for i, result in enumerate(results['results'], 1):
-            safe_print(f"\n{i}. {result['title']}")
-            safe_print(f"   URL: {result['url']}")
-            safe_print(f"   Description: {result['description'][:100]}...")
+            print(f"\n{i}. {result['title']}")
+            print(f"   URL: {result['url']}")
+            print(f"   Description: {result['description'][:100]}...")
             
     except Exception as e:
-        safe_print(f"Error: {e}")
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
