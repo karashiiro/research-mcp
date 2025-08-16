@@ -49,7 +49,7 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
     max_retries = 5
     base_delay = 1.0  # Start with 1 second
     
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=300.0) as client:
         for attempt in range(max_retries + 1):
             try:
                 response = await client.get(url, headers=headers, params=params)
