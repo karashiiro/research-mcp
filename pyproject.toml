@@ -5,5 +5,6 @@ description = "Deep research MCP server."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "strands-agents-tools>=0.2.3",
     "strands-agents[ollama]>=1.4.0",
 ]
