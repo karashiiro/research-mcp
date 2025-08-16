@@ -801,12 +801,16 @@ name = "research-mcp"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "httpx" },
+    { name = "python-dotenv" },
     { name = "strands-agents", extra = ["ollama"] },
     { name = "strands-agents-tools" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "strands-agents", extras = ["ollama"], specifier = ">=1.4.0" },
     { name = "strands-agents-tools", specifier = ">=0.2.3" },
 ]
