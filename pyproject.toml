@@ -1,0 +1,9 @@
+[project]
+name = "research-mcp"
+version = "0.1.0"
+description = "Deep research MCP server."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "strands-agents[ollama]>=1.4.0",
+]
