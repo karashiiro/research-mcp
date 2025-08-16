@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from strands import Agent
@@ -68,18 +69,45 @@ class ResearchOrchestrator:
         """
         
         response = self.lead_researcher(prompt)
+        response_text = "".join(map(extract_content_text, response.message["content"]))
+        
+        # Extract JSON array from the response using regex
+        json_pattern = r'\[(?:\s*"[^"]*"\s*,?\s*)+\]'
+        json_matches = re.findall(json_pattern, response_text)
+        
+        if not json_matches:
+            raise ValueError(f"No JSON array found in AI response for topic '{main_topic}'.\n"
+                           f"Full response: {response_text}")
+        
+        # Take the last JSON match (most likely to be the final answer)
+        json_string = json_matches[-1]
         
         try:
-            # Try to parse the JSON response
-            subtopics = json.loads("".join(map(extract_content_text, response.message["content"])))
-            if isinstance(subtopics, list) and 2 <= len(subtopics) <= 5:
-                return subtopics
-            else:
-                # Invalid format - use fallback
-                return [f"{main_topic} - Overview", f"{main_topic} - Applications"]
-        except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
-            return [f"{main_topic} - Overview", f"{main_topic} - Applications"]
+            subtopics = json.loads(json_string)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse JSON array for topic '{main_topic}'.\n"
+                           f"Extracted JSON: {json_string}\n"
+                           f"JSON Error: {e}\n"
+                           f"Full response: {response_text}")
+        
+        # Validate the result
+        if not isinstance(subtopics, list):
+            raise ValueError(f"AI response was not a list for topic '{main_topic}'.\n"
+                           f"Got: {type(subtopics).__name__}\n"
+                           f"Value: {subtopics}\n"
+                           f"Full response: {response_text}")
+        
+        if not (2 <= len(subtopics) <= 5):
+            raise ValueError(f"AI generated {len(subtopics)} subtopics for '{main_topic}', expected 2-5.\n"
+                           f"Subtopics: {subtopics}\n"
+                           f"Full response: {response_text}")
+        
+        if not all(isinstance(item, str) for item in subtopics):
+            raise ValueError(f"AI response contains non-string items for topic '{main_topic}'.\n"
+                           f"Subtopics: {subtopics}\n"
+                           f"Full response: {response_text}")
+        
+        return subtopics
     
     async def research_subtopic(self, subtopic: str, agent_id: int) -> Dict[str, Any]:
         """
