@@ -98,19 +98,22 @@ class ResearchOrchestrator:
         
         return subtopics
     
-    async def research_subtopic(self, subtopic: str, agent_id: int) -> Dict[str, Any]:
+    async def research_subtopic(self, main_topic: str, subtopic: str, agent_id: int) -> Dict[str, Any]:
         """
         Use a subagent to research a specific subtopic with improved error handling
         """
         agent = self.agent_manager.get_subagent(agent_id)
         
+        # Create contextual search query by combining main topic with subtopic
+        contextual_query = f"{main_topic} {subtopic}"
+        
         try:
             # Perform real web search with caching
-            raw_search_data = await web_search(subtopic, count=5)
+            raw_search_data = await web_search(contextual_query, count=5)
             
             # Convert to expected format for compatibility
             search_results = {
-                "query": subtopic,
+                "query": contextual_query,
                 "results": [
                     {
                         "title": result.get("title", ""),
@@ -122,13 +125,13 @@ class ResearchOrchestrator:
             }
             
             # Log search success
-            self.research_logger.info(f"Search completed for '{subtopic}': {len(search_results['results'])} results found")
+            self.research_logger.info(f"Search completed for '{contextual_query}': {len(search_results['results'])} results found")
             
         except Exception as e:
             # Handle search failures gracefully
-            self.research_logger.error(f"Search failed for '{subtopic}': {e}")
+            self.research_logger.error(f"Search failed for '{contextual_query}': {e}")
             search_results = {
-                "query": subtopic,
+                "query": contextual_query,
                 "results": [],
                 "error": str(e)
             }
@@ -175,7 +178,7 @@ class ResearchOrchestrator:
         # Step 2: Research each subtopic in parallel
         print("\\n🔍 Delegating research to subagents...")
         research_tasks = [
-            self.research_subtopic(subtopic, i) 
+            self.research_subtopic(main_topic, subtopic, i) 
             for i, subtopic in enumerate(subtopics)
         ]
         
