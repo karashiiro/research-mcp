@@ -30,7 +30,6 @@ COPY --from=builder /app/.venv /app/.venv
 # Copy application source code
 COPY src/ ./src/
 COPY cli/ ./cli/
-COPY CLAUDE.md ./
 
 # Create required directories
 RUN mkdir -p logs cache && chown -R mcp:mcp /app
