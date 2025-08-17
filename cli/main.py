@@ -6,6 +6,13 @@ lead researchers and specialized subagents for comprehensive topic investigation
 """
 
 import asyncio
+import argparse
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from src.research_orchestrator import ResearchOrchestrator
 from strands.types.content import ContentBlock
 
@@ -17,17 +24,32 @@ def extract_content_text(c: ContentBlock) -> str:
 
 async def main():
     """
-    Test the research orchestration system
+    Run the research orchestration system with user-provided topic
     """
+    parser = argparse.ArgumentParser(
+        description="Deep Research Orchestration System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python cli/main.py "Machine Learning in Healthcare"
+  python cli/main.py "Climate Change Impact on Agriculture"
+  python cli/main.py "Imaginarium Theatre Optimization Strategies in Genshin Impact"
+        """,
+    )
+    parser.add_argument("topic", help="Research topic to investigate comprehensively")
+
+    args = parser.parse_args()
+
     orchestrator = ResearchOrchestrator()
+    research_topic = args.topic
 
-    test_topic = "Imaginarium Theatre Optimization Strategies in Genshin Impact"
-
-    print("🚀 Research Orchestration System Test")
+    print("🚀 Deep Research Orchestration System")
+    print("=" * 50)
+    print(f"📋 Research Topic: {research_topic}")
     print("=" * 50)
 
     try:
-        results = await orchestrator.conduct_research(test_topic)
+        results = await orchestrator.conduct_research(research_topic)
 
         print("\n✨ Research Complete!")
         print(f"📋 Final Report Summary:")

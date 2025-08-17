@@ -6,7 +6,7 @@ Provides MCP tools for comprehensive research orchestration using multi-agent sy
 
 from mcp.server.fastmcp import FastMCP
 
-from ..research_orchestrator import ResearchOrchestrator
+from research_orchestrator import ResearchOrchestrator
 
 
 # Create the FastMCP server instance
