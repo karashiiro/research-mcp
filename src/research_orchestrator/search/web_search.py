@@ -1,7 +1,9 @@
 import os
 import asyncio
+import itertools
 from typing import Dict, Any
 import httpx
+from httpcore._async.connection import exponential_backoff
 from .cache import get_cache
 
 
@@ -52,10 +54,11 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
     
     # Retry logic with exponential backoff for rate limiting
     max_retries = 5
-    base_delay = 1.0  # Start with 1 second
     
     async with httpx.AsyncClient(timeout=300.0) as client:
-        for attempt in range(max_retries + 1):
+        for attempt, delay in enumerate(itertools.islice(exponential_backoff(factor=1.0), max_retries + 1)):
+            await asyncio.sleep(delay)  # 0, 1, 2, 4, 8, 16 seconds
+            
             try:
                 response = await client.get(url, headers=headers, params=params)
                 response.raise_for_status()
@@ -92,9 +95,7 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
             except httpx.HTTPStatusError as e:
                 # Handle rate limiting with exponential backoff
                 if e.response.status_code == 429 and attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)  # Exponential backoff: 1s, 2s, 4s, 8s, 16s
                     print(f"Rate limited, retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries + 1})")
-                    await asyncio.sleep(delay)
                     continue
                 else:
                     raise httpx.HTTPError(f"Search API returned status {e.response.status_code}: {e.response.text}")
