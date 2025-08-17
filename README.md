@@ -1,4 +1,4 @@
-# Deep Research MCP Server
+# (WIP) Deep Research MCP Server
 
 A research orchestration MCP server. This system implements a hierarchical research architecture where a lead researcher coordinates multiple specialized research agents to conduct investigations on complex topics, generating detailed reports with proper citations and analysis.
 
