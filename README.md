@@ -2,7 +2,7 @@
 
 A research orchestration MCP server. This system implements a hierarchical research architecture where a lead researcher coordinates multiple specialized research agents to conduct investigations on complex topics, generating detailed reports with proper citations and analysis.
 
-Modeled after Claude's [Research Tool](https://www.anthropic.com/engineering/multi-agent-research-system).
+Modeled loosely after Claude's [Research Tool](https://www.anthropic.com/engineering/multi-agent-research-system).
 
 ## Quick Start
 
