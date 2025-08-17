@@ -45,7 +45,7 @@ def create_master_synthesis(main_topic: str, research_results: List[Dict[str, An
                 "sources": result.get("search_results", {}).get("results", [])
             })
         
-        # Create simplified synthesis prompt
+        # Create synthesis prompt with citation instructions
         synthesis_prompt = f"""Write a master synthesis report for: {main_topic}
 
 Research data from {len(research_summaries)} subtopics:
@@ -58,22 +58,23 @@ Output format:
 **Date:** {datetime.now().strftime('%Y-%m-%d')}
 
 ## Executive Summary
-[Combine key findings from all subtopics - 3-4 sentences]
+[Combine key findings from all subtopics - 3-4 sentences with citations]
 
 ## Key Findings by Area
-{chr(10).join([f"### {r['subtopic']}{chr(10)}- Main finding{chr(10)}- Key insight{chr(10)}" for r in research_summaries])}
+{chr(10).join([f"### {r['subtopic']}{chr(10)}- Main finding [X]{chr(10)}- Key insight [Y]{chr(10)}" for r in research_summaries])}
 
 ## Conclusion
-[Overall summary - 2-3 sentences]
+[Overall summary - 2-3 sentences with citations]
 
-## Sources
-[List all unique sources from research]
+## References
+[Numbered list of all unique sources from the research data]
 
-Requirements:
-- Use only provided research content
-- Keep sections brief and direct
-- Combine information, don't repeat it
-- Use factual language only"""
+CITATION REQUIREMENTS:
+- Include citation numbers [1], [2], [3] etc. after each factual claim
+- Assign consistent numbers to sources across the entire report
+- Extract all sources from the individual research reports
+- Create a numbered References section with titles and URLs
+- Ensure every factual statement has a proper citation"""
         
         # Generate synthesis using lead researcher
         synthesis_response = lead_researcher(synthesis_prompt)
