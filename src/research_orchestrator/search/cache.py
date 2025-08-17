@@ -6,7 +6,6 @@ Provides caching functionality to reduce redundant API calls
 import json
 import os
 import hashlib
-import time
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
@@ -222,37 +221,3 @@ def get_cache() -> SearchCache:
     if _cache_instance is None:
         _cache_instance = SearchCache()
     return _cache_instance
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test the cache
-    cache = SearchCache()
-    
-    # Test data
-    test_query = "quantum machine learning"
-    test_results = {
-        "query": test_query,
-        "results": [
-            {"title": "Test Result 1", "url": "https://example1.com"},
-            {"title": "Test Result 2", "url": "https://example2.com"}
-        ],
-        "total_results": 2
-    }
-    
-    print("Testing SearchCache...")
-    
-    # Test cache miss
-    cached = cache.get(test_query, 5)
-    print(f"Cache miss: {cached is None}")
-    
-    # Test cache set
-    cache.set(test_query, 5, test_results)
-    
-    # Test cache hit
-    cached = cache.get(test_query, 5)
-    print(f"Cache hit: {cached is not None}")
-    
-    # Test cache stats
-    stats = cache.get_cache_stats()
-    print(f"Cache stats: {stats}")

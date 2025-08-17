@@ -3,7 +3,6 @@ Research Report Formatting Module
 Provides standardized templates and formatting for research reports
 """
 
-import json
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
@@ -311,34 +310,3 @@ def format_research_cache_key(query: str) -> str:
     normalized = re.sub(r'[^\w\s-]', '', query.lower())
     normalized = re.sub(r'\s+', '_', normalized.strip())
     return f"research_{normalized}"
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test the formatter
-    formatter = ReportFormatter()
-    
-    sample_search_results = {
-        "query": "quantum machine learning",
-        "results": [
-            {
-                "title": "Quantum Machine Learning Review",
-                "url": "https://example.com/qml-review",
-                "snippet": "Comprehensive overview of quantum machine learning techniques..."
-            },
-            {
-                "title": "Applications of QML in Healthcare",
-                "url": "https://example.com/qml-healthcare", 
-                "snippet": "Quantum machine learning shows promise in medical diagnosis..."
-            }
-        ]
-    }
-    
-    prompt = formatter.create_standard_prompt(
-        "Quantum Machine Learning Applications",
-        sample_search_results
-    )
-    
-    print("Sample Standardized Prompt:")
-    print("=" * 50)
-    print(prompt[:500] + "...")

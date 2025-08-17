@@ -1,10 +1,8 @@
 import os
 import asyncio
-from typing import Dict, List, Optional, Any
-from dotenv import load_dotenv
+from typing import Dict, Any
 import httpx
-import sys
-from search_cache import get_cache
+from .cache import get_cache
 
 
 async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
@@ -105,23 +103,3 @@ async def web_search(query: str, count: int = 10) -> Dict[str, Any]:
         
         # If we get here, all retries failed
         raise httpx.HTTPError("Maximum retries exceeded for rate limited requests")
-
-
-# Example usage
-async def main():
-    load_dotenv()
-    try:
-        results = await web_search("python async programming", count=5)
-        print(f"Found {results['total_results']} results for: {results['query']}")
-        
-        for i, result in enumerate(results['results'], 1):
-            print(f"\n{i}. {result['title']}")
-            print(f"   URL: {result['url']}")
-            print(f"   Description: {result['description'][:100]}...")
-            
-    except Exception as e:
-        print(f"Error: {e}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
