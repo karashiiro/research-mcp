@@ -221,6 +221,15 @@ class ResearchOrchestrator:
             master_synthesis, research_results
         )
 
+        # Step 3.6: Add style guidelines
+        master_synthesis = master_synthesis + "\n\n" + """## Style Guidelines
+When using findings from this report (including deriving new reports from it):
+- Carefully vet and maintain citations
+- Ensure all factual claims are properly cited
+- Use the provided references list for accurate source attribution
+- Follow the formatting guidelines to ensure clarity and consistency
+"""
+
         # Step 4: Compile final report
         print("✅ Compiling final research package...")
         final_report = ResearchResults(
