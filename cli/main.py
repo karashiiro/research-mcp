@@ -33,7 +33,6 @@ async def main():
 Examples:
   python cli/main.py "Machine Learning in Healthcare"
   python cli/main.py "Climate Change Impact on Agriculture"
-  python cli/main.py "Imaginarium Theatre Optimization Strategies in Genshin Impact"
         """,
     )
     parser.add_argument("topic", help="Research topic to investigate comprehensively")

@@ -4,7 +4,13 @@ Research MCP Server Implementation
 Provides MCP tools for comprehensive research orchestration using multi-agent systems.
 """
 
+import sys
+from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
+
+# Add parent directory to path for imports  
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from research_orchestrator import ResearchOrchestrator
 
