@@ -25,27 +25,29 @@ def setup_logging():
     """Configure strands logging to write to files."""
     # Create logs directory if it doesn't exist
     os.makedirs("logs", exist_ok=True)
-    
+
     # Configure strands logger to write to file
     strands_logger = logging.getLogger("strands")
     strands_logger.setLevel(logging.DEBUG)
-    
+
     # Create file handler for strands logs
-    file_handler = logging.FileHandler("logs/strands_agents.log", encoding='utf-8')
-    file_handler.setFormatter(logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-    ))
+    file_handler = logging.FileHandler("logs/strands_agents.log", encoding="utf-8")
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    )
     strands_logger.addHandler(file_handler)
-    
+
     # Create file handler for research results
-    research_handler = logging.FileHandler("logs/research_results.log", encoding='utf-8')
+    research_handler = logging.FileHandler(
+        "logs/research_results.log", encoding="utf-8"
+    )
     research_handler.setFormatter(logging.Formatter("%(message)s"))
-    
+
     # Create research logger
     research_logger = logging.getLogger("research")
     research_logger.setLevel(logging.INFO)
     research_logger.addHandler(research_handler)
-    
+
     return research_logger
 
 
@@ -56,11 +58,11 @@ def get_model() -> Model:
         return OllamaModel(
             host=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
             model_id=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
-            temperature=temperature
+            temperature=temperature,
         )
     else:
         return BedrockModel(
             model_id=os.getenv("BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"),
             temperature=temperature,
-            max_tokens=4000
+            max_tokens=4000,
         )

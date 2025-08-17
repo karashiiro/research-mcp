@@ -5,9 +5,10 @@ Creates comprehensive master synthesis reports combining multiple subtopic resea
 """
 
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from strands import Agent
 from strands.types.content import ContentBlock
+from ..types import SubtopicResearch
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -15,15 +16,17 @@ def extract_content_text(c: ContentBlock) -> str:
     return c.get("text", "")
 
 
-def create_master_synthesis(main_topic: str, research_results: List[Dict[str, Any]], lead_researcher: Agent) -> str:
+def create_master_synthesis(
+    main_topic: str, research_results: List[SubtopicResearch], lead_researcher: Agent
+) -> str:
     """
     Create a master synthesis report combining all subtopic research
-    
+
     Args:
         main_topic: The main research topic
         research_results: List of research results from subagents
         lead_researcher: Lead researcher agent for synthesis generation
-        
+
     Returns:
         Master synthesis report as markdown string
     """
@@ -32,19 +35,29 @@ def create_master_synthesis(main_topic: str, research_results: List[Dict[str, An
         research_summaries = []
         for result in research_results:
             # Handle both dict and object response formats
-            research_summary = result['research_summary']
-            if hasattr(research_summary, 'message'):
-                summary_text = "".join(map(extract_content_text, research_summary.message["content"]))
+            research_summary = result["research_summary"]
+            if isinstance(research_summary, dict) and "message" in research_summary:
+                # Handle dict format (AgentResponse TypedDict)
+                summary_text = "".join(
+                    map(extract_content_text, research_summary["message"]["content"])
+                )
             else:
-                # Handle dict format
-                summary_text = "".join(map(extract_content_text, research_summary.get("message", {}).get("content", [])))
-            
-            research_summaries.append({
-                "subtopic": result["subtopic"],
-                "content": summary_text,
-                "sources": result.get("search_results", {}).get("results", [])
-            })
-        
+                # Handle other formats - fallback
+                summary_text = "".join(
+                    map(
+                        extract_content_text,
+                        research_summary.get("message", {}).get("content", []),
+                    )
+                )
+
+            research_summaries.append(
+                {
+                    "subtopic": result["subtopic"],
+                    "content": summary_text,
+                    "sources": result.get("search_results", {}).get("results", []),
+                }
+            )
+
         # Create synthesis prompt with citation instructions
         synthesis_prompt = f"""Write a master synthesis report for: {main_topic}
 
@@ -82,11 +95,18 @@ DEPTH REQUIREMENTS:
 - Cover trends, developments, implications, and applications for each area
 - Use natural prose paragraphs instead of bullet points or tables
 - Ensure each subtopic section is thorough and in-depth (2-3 substantial paragraphs minimum)"""
-        
+
         # Generate synthesis using lead researcher
         synthesis_response = lead_researcher(synthesis_prompt)
-        
-        return "".join(map(extract_content_text, synthesis_response.message["content"]))
-        
+
+        # Handle synthesis response (should be dict format)
+        if isinstance(synthesis_response, dict) and "message" in synthesis_response:
+            return "".join(
+                map(extract_content_text, synthesis_response["message"]["content"])
+            )
+        else:
+            # Handle other response formats - return error message if format unexpected
+            return f"Unexpected synthesis response format: {type(synthesis_response)}"
+
     except Exception as e:
         return f"Error creating master synthesis: {e}"

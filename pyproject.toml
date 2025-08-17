@@ -10,3 +10,9 @@ dependencies = [
     "strands-agents-tools>=0.2.3",
     "strands-agents[ollama]>=1.4.0",
 ]
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "mypy>=1.17.1",
+]
