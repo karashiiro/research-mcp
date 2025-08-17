@@ -61,7 +61,7 @@ Output format:
 [Combine key findings from all subtopics - 3-4 sentences with citations]
 
 ## Key Findings by Area
-{chr(10).join([f"### {r['subtopic']}{chr(10)}- Main finding [X]{chr(10)}- Key insight [Y]{chr(10)}" for r in research_summaries])}
+{chr(10).join([f"### {r['subtopic']}{chr(10)}[Write 2-3 detailed paragraphs covering all major findings, insights, statistics, trends, and implications from this subtopic. Include specific details, metrics, and comprehensive analysis with proper citations.]{chr(10)}" for r in research_summaries])}
 
 ## Conclusion
 [Overall summary - 2-3 sentences with citations]
@@ -74,7 +74,14 @@ CITATION REQUIREMENTS:
 - Assign consistent numbers to sources across the entire report
 - Extract all sources from the individual research reports
 - Create a numbered References section with titles and URLs
-- Ensure every factual statement has a proper citation"""
+- Ensure every factual statement has a proper citation
+
+DEPTH REQUIREMENTS:
+- Write comprehensive, detailed sections that preserve the rich information from individual reports
+- Include specific statistics, metrics, dates, and technical details with citations
+- Cover trends, developments, implications, and applications for each area
+- Use natural prose paragraphs instead of bullet points or tables
+- Ensure each subtopic section is thorough and in-depth (2-3 substantial paragraphs minimum)"""
         
         # Generate synthesis using lead researcher
         synthesis_response = lead_researcher(synthesis_prompt)
