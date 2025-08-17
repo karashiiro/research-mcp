@@ -36,18 +36,20 @@ def create_master_synthesis(
         for result in research_results:
             # Handle both dict and object response formats
             research_summary = result["research_summary"]
-            if isinstance(research_summary, dict) and "message" in research_summary:
+            if hasattr(research_summary, "message"):
+                # Handle AgentResult object format
+                summary_text = "".join(
+                    map(extract_content_text, research_summary.message["content"])  # type: ignore[attr-defined]
+                )
+            elif isinstance(research_summary, dict) and "message" in research_summary:
                 # Handle dict format (AgentResponse TypedDict)
                 summary_text = "".join(
                     map(extract_content_text, research_summary["message"]["content"])
                 )
             else:
                 # Handle other formats - fallback
-                summary_text = "".join(
-                    map(
-                        extract_content_text,
-                        research_summary.get("message", {}).get("content", []),
-                    )
+                summary_text = (
+                    f"Unexpected research summary format: {type(research_summary)}"
                 )
 
             research_summaries.append(
@@ -99,8 +101,14 @@ DEPTH REQUIREMENTS:
         # Generate synthesis using lead researcher
         synthesis_response = lead_researcher(synthesis_prompt)
 
-        # Handle synthesis response (should be dict format)
-        if isinstance(synthesis_response, dict) and "message" in synthesis_response:
+        # Handle synthesis response
+        if hasattr(synthesis_response, "message"):
+            # Handle AgentResult object format
+            return "".join(
+                map(extract_content_text, synthesis_response.message["content"])  # type: ignore[attr-defined]
+            )
+        elif isinstance(synthesis_response, dict) and "message" in synthesis_response:
+            # Handle dict format
             return "".join(
                 map(extract_content_text, synthesis_response["message"]["content"])
             )

@@ -48,7 +48,12 @@ async def main():
 
             # Extract text content safely from AI response
             research_summary = research["research_summary"]
-            if isinstance(research_summary, dict) and "message" in research_summary:
+            if hasattr(research_summary, "message"):
+                # Handle AgentResult object format
+                summary_text = "".join(
+                    map(extract_content_text, research_summary.message["content"])  # type: ignore[attr-defined]
+                )
+            elif isinstance(research_summary, dict) and "message" in research_summary:
                 # Handle dict format (AgentResponse TypedDict)
                 summary_text = "".join(
                     map(extract_content_text, research_summary["message"]["content"])
