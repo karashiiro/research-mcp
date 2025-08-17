@@ -62,6 +62,15 @@ uv run mcp dev src/mcp_server/server.py
 **Use via MCP client:**
 The server provides a `conduct_research` tool that accepts a topic string and returns a research report.
 
+### Using Docker (with Bedrock backend)
+
+Create a `.env` file with appropriate environment variables, and then
+Add the following command to your MCP configuration:
+
+```bash
+docker run -i --rm -v /path/to/your.env:/app/.env:ro -v /home/you/.aws:/home/mcp/.aws ghcr.io/karashiiro/research-mcp:main
+```
+
 ## Advanced Usage
 
 **Clear cache (for fresh web searches):**
