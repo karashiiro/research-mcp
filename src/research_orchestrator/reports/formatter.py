@@ -49,7 +49,7 @@ class ReportFormatter:
         ---
 
         ## 1. Executive Summary
-        [Provide a word executive summary that captures the key insights]
+        [Provide an executive summary that captures the key insights]
 
         ---
 
@@ -153,7 +153,7 @@ FORMATTING REQUIREMENTS:
         ---
 
         ## Executive Summary
-        [300-400 word synthesis of all key findings across subtopics]
+        [Synthesis of all key findings across subtopics]
 
         ---
 
