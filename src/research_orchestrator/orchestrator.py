@@ -1,25 +1,20 @@
 """
 Research Orchestration Logic
 
-Main orchestrator that coordinates research workflow with lead researcher and subagents.
+Simplified architecture with complete delegation to lead researcher.
+The lead researcher handles subtopic generation, concurrent research, and synthesis.
+The research_specialist tool enforces concurrency by only accepting lists of queries.
 """
 
-import asyncio
-import json
-import re
+import time
+import uuid
 from datetime import datetime
-from typing import List
 from strands.types.content import ContentBlock
 
 from .agents import create_agent_manager
 from .config import setup_logging
 from .models import create_model
-from .reports import ReportFormatter
-from .types import (
-    SubtopicResearch,
-    ResearchResults,
-    CompatSearchResults,
-)
+from .types import ResearchResults
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -37,8 +32,7 @@ def extract_content_text(c: ContentBlock) -> str:
 
 class ResearchOrchestrator:
     """
-    Lead researcher agent that orchestrates research by generating subtopics
-    and delegating them to subagents for detailed investigation
+    Research orchestrator that delegates complete research workflows to lead researcher.
     """
 
     def __init__(self):
@@ -51,196 +45,74 @@ class ResearchOrchestrator:
         # Set up logging
         self.research_logger = setup_logging()
 
-    def generate_subtopics(self, main_topic: str) -> List[str]:
+    async def complete_research_workflow(self, main_topic: str) -> ResearchResults:
         """
-        Use the lead researcher to break down a main topic into 2-5 subtopics
+        Delegates the complete research workflow to the lead researcher.
         """
-        prompt = f"""
-        As a lead researcher, break down the topic "{main_topic}" into 2-5 specific subtopics that would provide comprehensive coverage of the subject.
+        workflow_id = str(uuid.uuid4())
+        workflow_start = time.time()
+        self.research_logger.info(f"🕐 [{workflow_id}] Starting complete research workflow for: {main_topic}")
         
-        Each subtopic should be:
-        - Specific and focused
-        - Researchable with web searches
-        - Complementary to the other subtopics
-        - Contributing to a complete understanding of the main topic
-        
-        Return ONLY a JSON list of subtopic strings, nothing else.
-        Example format: ["Subtopic 1", "Subtopic 2", "Subtopic 3"]
-        """
-
         lead_researcher = self.agent_manager.get_lead_researcher()
-        response = lead_researcher(prompt)
-        response_text = "".join(map(extract_content_text, response.message["content"]))
+        
+        prompt = f"""As lead researcher, conduct a complete research workflow for the topic: "{main_topic}"
 
-        # Extract JSON array from the response using regex
-        json_pattern = r'\[(?:\s*"[^"]*"\s*,?\s*)+\]'
-        json_matches = re.findall(json_pattern, response_text)
+COMPLETE WORKFLOW:
+1. Generate 2-5 focused subtopics for comprehensive coverage
+2. Use research_specialist tool with ALL subtopics to get concurrent research reports  
+3. Create a comprehensive master synthesis report combining all findings
+4. Include proper citations, structure, and formatting
 
-        if not json_matches:
-            raise ValueError(
-                f"No JSON array found in AI response for topic '{main_topic}'.\\n"
-                f"Full response: {response_text}"
-            )
-
-        # Take the last JSON match (most likely to be the final answer)
-        json_string = json_matches[-1]
+Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings."""
 
         try:
-            subtopics = json.loads(json_string)
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Failed to parse JSON array for topic '{main_topic}'.\\n"
-                f"Extracted JSON: {json_string}\\n"
-                f"JSON Error: {e}\\n"
-                f"Full response: {response_text}"
+            delegation_start = time.time()
+            self.research_logger.info(f"⏱️ [{workflow_id}] Delegating to lead researcher...")
+            
+            response = lead_researcher(prompt)
+            
+            delegation_end = time.time()
+            delegation_time = delegation_end - delegation_start
+            self.research_logger.info(f"✅ [{workflow_id}] Lead researcher completed in {delegation_time:.2f} seconds")
+            
+            processing_start = time.time()
+            self.research_logger.info(f"🔄 [{workflow_id}] Processing response...")
+            
+            master_synthesis = "".join(map(extract_content_text, response.message["content"]))
+            
+            final_report = ResearchResults(
+                main_topic=main_topic,
+                subtopics_count=0,
+                subtopic_research=[],
+                master_synthesis=master_synthesis,
+                summary=f"Comprehensive research conducted on '{main_topic}' via delegation to lead researcher.",
+                generated_at=datetime.now().isoformat(),
             )
 
-        # Validate the result
-        if not isinstance(subtopics, list):
-            raise ValueError(
-                f"AI response was not a list for topic '{main_topic}'.\\n"
-                f"Got: {type(subtopics).__name__}\\n"
-                f"Value: {subtopics}\\n"
-                f"Full response: {response_text}"
-            )
-
-        if not (2 <= len(subtopics) <= 5):
-            raise ValueError(
-                f"AI generated {len(subtopics)} subtopics for '{main_topic}', expected 2-5.\\n"
-                f"Subtopics: {subtopics}\\n"
-                f"Full response: {response_text}"
-            )
-
-        if not all(isinstance(item, str) for item in subtopics):
-            raise ValueError(
-                f"AI response contains non-string items for topic '{main_topic}'.\\n"
-                f"Subtopics: {subtopics}\\n"
-                f"Full response: {response_text}"
-            )
-
-        return subtopics
-
-    async def research_subtopic_with_lead(
-        self, main_topic: str, subtopic: str, agent_id: int
-    ) -> SubtopicResearch:
-        """
-        Use the lead researcher with research specialist tools to research a subtopic
-        """
-        lead_researcher = self.agent_manager.get_lead_researcher()
-
-        try:
-            # Create a research delegation prompt for the lead researcher
-            prompt = f"""Use the research_specialist tool to investigate the subtopic "{subtopic}" in the context of the main topic "{main_topic}". 
-
-Please use the tool to gather comprehensive information and return the research findings."""
-
-            # Let the lead researcher delegate to research specialists
-            research_summary = lead_researcher(prompt)
-
-            # Log research completion
-            self.research_logger.info(
-                f"Research completed for '{subtopic}' via lead researcher with agent ID {agent_id}"
-            )
-
-            # Create empty search results for compatibility (research specialist tools handle searches)
-            search_results = CompatSearchResults(
-                query=f"{main_topic} {subtopic}",
-                results=[],
-                error=None,
-            )
+            processing_end = time.time()
+            processing_time = processing_end - processing_start
+            workflow_end = time.time()
+            total_time = workflow_end - workflow_start
+            
+            self.research_logger.info(f"⚡ [{workflow_id}] Response processing completed in {processing_time:.2f} seconds")
+            self.research_logger.info(f"🎯 [{workflow_id}] Complete research workflow finished for '{main_topic}' in {total_time:.2f} seconds total")
+            
+            return final_report
 
         except Exception as e:
-            # Handle AI generation failures
-            self.research_logger.error(
-                f"Research generation failed for '{subtopic}': {e}"
-            )
-            research_summary = {
-                "message": {
-                    "content": [{"text": f"Error generating research summary: {e}"}]
-                }
-            }
-
-            # Create error search results for compatibility
-            search_results = CompatSearchResults(
-                query=f"{main_topic} {subtopic}",
-                results=[],
-                error=str(e),
-            )
-
-        return SubtopicResearch(
-            subtopic=subtopic,
-            agent_id=agent_id,
-            search_results=search_results,
-            research_summary=research_summary,
-        )
-
-    async def research_subtopic(
-        self, main_topic: str, subtopic: str, agent_id: int
-    ) -> SubtopicResearch:
-        """
-        Backward compatibility wrapper - delegates to the new agents-as-tools approach
-        """
-        # Delegate to the new method for compatibility
-        return await self.research_subtopic_with_lead(main_topic, subtopic, agent_id)
+            workflow_end = time.time()
+            total_time = workflow_end - workflow_start
+            self.research_logger.error(f"❌ [{workflow_id}] Complete workflow delegation failed for '{main_topic}' after {total_time:.2f} seconds: {e}")
+            raise RuntimeError(f"Research workflow failed for topic '{main_topic}': {str(e)}") from e
 
     async def conduct_research(self, main_topic: str) -> ResearchResults:
         """
-        Orchestrate the complete research process
+        Orchestrate the complete research process by delegating to lead researcher.
         """
-        print(f"🔬 Starting research orchestration for: {main_topic}")
+        self.research_logger.info(f"Starting research orchestration for: {main_topic}")
+        self.research_logger.info("Delegating research workflow to lead researcher")
 
-        # Step 1: Generate subtopics
-        print("📝 Generating subtopics...")
-        subtopics = self.generate_subtopics(main_topic)
-        print(f"✅ Generated {len(subtopics)} subtopics:")
-        for i, subtopic in enumerate(subtopics, 1):
-            print(f"   {i}. {subtopic}")
-
-        # Step 2: Research each subtopic using lead researcher with specialist tools
-        print("\\n🔍 Delegating research via lead researcher to specialist tools...")
-        research_tasks = [
-            self.research_subtopic_with_lead(main_topic, subtopic, i)
-            for i, subtopic in enumerate(subtopics)
-        ]
-
-        research_results = await asyncio.gather(*research_tasks)
-
-        # Step 3: Create master synthesis report (imported from reports package)
-        print("\\n📊 Creating master synthesis report...")
-        from .reports.synthesis import create_master_synthesis
-
-        master_synthesis = create_master_synthesis(
-            main_topic, research_results, self.agent_manager.get_lead_researcher()
-        )
-
-        # Step 3.5: Add cross-references and table of contents
-        print("🔗 Adding cross-references and table of contents...")
-        master_synthesis = ReportFormatter.add_cross_references(
-            master_synthesis, research_results
-        )
-
-        # Step 3.6: Add style guidelines
-        master_synthesis = (
-            master_synthesis
-            + "\n\n"
-            + """## Style Guidelines
-When using findings from this report (including deriving new reports from it):
-- Carefully vet and maintain citations
-- Ensure all factual claims are properly cited
-- Use the provided references list for accurate source attribution
-- Follow the formatting guidelines to ensure clarity and consistency
-"""
-        )
-
-        # Step 4: Compile final report
-        print("✅ Compiling final research package...")
-        final_report = ResearchResults(
-            main_topic=main_topic,
-            subtopics_count=len(subtopics),
-            subtopic_research=research_results,
-            master_synthesis=master_synthesis,
-            summary=f"Comprehensive research conducted on '{main_topic}' across {len(subtopics)} specialized areas with master synthesis.",
-            generated_at=datetime.now().isoformat(),
-        )
-
+        final_report = await self.complete_research_workflow(main_topic)
+        
+        self.research_logger.info("Research workflow completed")
         return final_report

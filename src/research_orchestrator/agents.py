@@ -6,6 +6,9 @@ Now implements agents-as-tools pattern for modular research orchestration.
 """
 
 from typing import List
+import asyncio
+import time
+import uuid
 from strands import Agent, tool
 from strands.models.model import Model
 from .tools import get_research_tools
@@ -17,7 +20,7 @@ LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who performs three 
 2. Delegate research tasks to specialized research agents using available tools
 3. Create master synthesis reports
 
-You have access to research_specialist tools that can conduct comprehensive research on any topic.
+You have access to research_specialist tools that conduct concurrent research for maximum efficiency.
 
 CRITICAL REQUIREMENTS:
 - NEVER generate internal reasoning, thinking, or analysis commentary
@@ -25,7 +28,8 @@ CRITICAL REQUIREMENTS:
 - Output ONLY the requested content in the specified format
 - Be direct, factual, and concise
 - Focus on synthesis and organization, not interpretation
-- When delegating research, use the research_specialist tool for each subtopic
+- The research_specialist tool ONLY accepts lists of queries and returns lists of reports
+- Always provide ALL subtopics as a single list to research_specialist for concurrent processing
 - Use ONLY information provided in source materials and tool results
 - Maintain consistent formatting and structure"""
 
@@ -112,16 +116,54 @@ def create_research_specialist_tool(model: Model):
     """
 
     @tool
-    def research_specialist(query: str) -> str:
+    def research_specialist(queries: List[str]) -> List[str]:
         """
-        Specialized research agent that conducts comprehensive web searches and analysis.
+        Specialized research agent that conducts concurrent web searches and analysis.
+        ALWAYS processes multiple queries in parallel for maximum efficiency!
 
         Args:
-            query: The research topic or question to investigate
+            queries: List of research topics/questions to investigate concurrently
 
         Returns:
-            Comprehensive research report with findings and citations
+            List of comprehensive research reports corresponding to each query
         """
+        tool_id = str(uuid.uuid4())
+        tool_start = time.time()
+        print(f"🔍 [{tool_id}] research_specialist tool started with {len(queries)} queries")
+        
+        # Always handle as concurrent research for maximum efficiency
+        results = asyncio.run(_conduct_concurrent_research(queries, model, tool_id))
+        
+        tool_end = time.time()
+        tool_time = tool_end - tool_start
+        print(f"✅ [{tool_id}] research_specialist tool completed in {tool_time:.2f} seconds")
+        
+        return results
+
+    return research_specialist
+
+
+async def _conduct_concurrent_research(queries: List[str], model: Model, tool_id: str) -> List[str]:
+    """
+    Conduct research for multiple queries concurrently for maximum efficiency!
+    
+    Args:
+        queries: List of research topics/questions to investigate in parallel
+        model: The model instance to use
+        
+    Returns:
+        List of research reports corresponding to each query
+    """
+    concurrent_start = time.time()
+    print(f"🚀 [{tool_id}] Starting concurrent research for {len(queries)} queries")
+    
+    async def research_single_async(query: str, query_index: int) -> str:
+        """Async wrapper for single research task."""
+        query_id = f"{tool_id}-{query_index}"
+        query_start = time.time()
+        print(f"  📝 [{query_id}] Starting research for: {query[:50]}...")
+        
+        # Create individual research agent for this query
         research_agent = Agent(
             model=model,
             system_prompt=RESEARCH_AGENT_SYSTEM_PROMPT,
@@ -134,12 +176,38 @@ def create_research_specialist_tool(model: Model):
             response = research_agent(prompt)
             # Extract text content from response
             from .orchestrator import extract_content_text
-
-            return "".join(map(extract_content_text, response.message["content"]))
+            result = "".join(map(extract_content_text, response.message["content"]))
+            
+            query_end = time.time()
+            query_time = query_end - query_start
+            print(f"  ✅ [{query_id}] Completed research for '{query[:50]}...' in {query_time:.2f} seconds")
+            
+            return result
         except Exception as e:
+            query_end = time.time()
+            query_time = query_end - query_start
+            print(f"  ❌ [{query_id}] Failed research for '{query[:50]}...' in {query_time:.2f} seconds: {e}")
             return f"Research failed for '{query}': {str(e)}"
-
-    return research_specialist
+    
+    # Execute all research queries concurrently
+    print(f"⚡ [{tool_id}] Dispatching concurrent research tasks...")
+    research_tasks = [research_single_async(query, i) for i, query in enumerate(queries)]
+    results = await asyncio.gather(*research_tasks, return_exceptions=True)
+    
+    # Convert any exceptions to error strings
+    processed_results: List[str] = []
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            processed_results.append(f"Research failed for '{queries[i]}': {str(result)}")
+        else:
+            # result should be a string at this point
+            processed_results.append(str(result))
+    
+    concurrent_end = time.time()
+    concurrent_time = concurrent_end - concurrent_start
+    print(f"🎯 [{tool_id}] Concurrent research completed in {concurrent_time:.2f} seconds")
+    
+    return processed_results
 
 
 def get_research_agent_tools(model: Model) -> List:
