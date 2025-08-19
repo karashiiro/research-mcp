@@ -6,7 +6,7 @@ Provides hierarchical research coordination with lead researchers and specialize
 """
 
 from .orchestrator import ResearchOrchestrator
-from .config import get_model, setup_logging
+from .config import setup_logging
 
 __version__ = "1.0.0"
-__all__ = ["ResearchOrchestrator", "get_model", "setup_logging"]
+__all__ = ["ResearchOrchestrator", "setup_logging"]

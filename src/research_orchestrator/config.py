@@ -8,9 +8,6 @@ import logging
 import os
 from dotenv import load_dotenv
 from strands.telemetry import StrandsTelemetry
-from strands.models.bedrock import BedrockModel
-from strands.models.model import Model
-from strands.models.ollama import OllamaModel
 
 # Load environment variables from .env file
 load_dotenv()
@@ -49,20 +46,3 @@ def setup_logging():
     research_logger.addHandler(research_handler)
 
     return research_logger
-
-
-def get_model() -> Model:
-    """Create and return appropriate model based on environment configuration."""
-    temperature = float(os.getenv("MODEL_TEMPERATURE", 0.0))
-    if os.getenv("MODEL_TYPE") == "ollama":
-        return OllamaModel(
-            host=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-            model_id=os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
-            temperature=temperature,
-        )
-    else:
-        return BedrockModel(
-            model_id=os.getenv("BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"),
-            temperature=temperature,
-            max_tokens=4000,
-        )

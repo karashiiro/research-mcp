@@ -19,7 +19,6 @@ from .types import (
     SubtopicResearch,
     ResearchResults,
     CompatSearchResults,
-    CompatSearchResultItem,
 )
 
 
@@ -121,27 +120,29 @@ class ResearchOrchestrator:
 
         return subtopics
 
-    async def research_subtopic(
+    async def research_subtopic_with_lead(
         self, main_topic: str, subtopic: str, agent_id: int
     ) -> SubtopicResearch:
         """
-        Use a subagent to research a specific subtopic - agents now do their own searches
+        Use the lead researcher with research specialist tools to research a subtopic
         """
-        agent = self.agent_manager.get_subagent(agent_id)
+        lead_researcher = self.agent_manager.get_lead_researcher()
 
         try:
-            # Create simple, direct prompt like our successful standalone test
-            prompt = f"""What current information can you find about "{subtopic}"? Please search for details and provide a comprehensive overview with sources."""
+            # Create a research delegation prompt for the lead researcher
+            prompt = f"""Use the research_specialist tool to investigate the subtopic "{subtopic}" in the context of the main topic "{main_topic}". 
 
-            # Let the agent do its own searches and generate the report
-            research_summary = agent(prompt)
+Please use the tool to gather comprehensive information and return the research findings."""
+
+            # Let the lead researcher delegate to research specialists
+            research_summary = lead_researcher(prompt)
 
             # Log research completion
             self.research_logger.info(
-                f"Research completed for '{subtopic}' by agent {agent_id}"
+                f"Research completed for '{subtopic}' via lead researcher with agent ID {agent_id}"
             )
 
-            # Create empty search results for compatibility (agents did their own searches)
+            # Create empty search results for compatibility (research specialist tools handle searches)
             search_results = CompatSearchResults(
                 query=f"{main_topic} {subtopic}",
                 results=[],
@@ -173,6 +174,15 @@ class ResearchOrchestrator:
             research_summary=research_summary,
         )
 
+    async def research_subtopic(
+        self, main_topic: str, subtopic: str, agent_id: int
+    ) -> SubtopicResearch:
+        """
+        Backward compatibility wrapper - delegates to the new agents-as-tools approach
+        """
+        # Delegate to the new method for compatibility
+        return await self.research_subtopic_with_lead(main_topic, subtopic, agent_id)
+
     async def conduct_research(self, main_topic: str) -> ResearchResults:
         """
         Orchestrate the complete research process
@@ -186,10 +196,10 @@ class ResearchOrchestrator:
         for i, subtopic in enumerate(subtopics, 1):
             print(f"   {i}. {subtopic}")
 
-        # Step 2: Research each subtopic in parallel
-        print("\\n🔍 Delegating research to subagents...")
+        # Step 2: Research each subtopic using lead researcher with specialist tools
+        print("\\n🔍 Delegating research via lead researcher to specialist tools...")
         research_tasks = [
-            self.research_subtopic(main_topic, subtopic, i)
+            self.research_subtopic_with_lead(main_topic, subtopic, i)
             for i, subtopic in enumerate(subtopics)
         ]
 
