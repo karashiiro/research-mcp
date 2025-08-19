@@ -65,7 +65,7 @@ class ModelFactory:
         config = {
             "model_id": os.getenv("BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"),
             "temperature": temperature,
-            "max_tokens": max_tokens or 4000,
+            "max_tokens": max_tokens or 6000,
         }
         config.update(kwargs)
         return BedrockModel(**config)  # type: ignore[arg-type]
