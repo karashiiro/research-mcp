@@ -9,18 +9,23 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-# Add parent directory to path for imports  
+# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Redirect print statements to stderr to avoid breaking MCP JSON protocol
 import builtins
+
 original_print = builtins.print
+
+
 def mcp_safe_print(*args, **kwargs):
-    kwargs['file'] = kwargs.get('file', sys.stderr)
+    kwargs["file"] = kwargs.get("file", sys.stderr)
     original_print(*args, **kwargs)
+
+
 builtins.print = mcp_safe_print
 
-from research_orchestrator import ResearchOrchestrator
+from research_orchestrator import ResearchOrchestrator  # type: ignore
 
 
 # Create the FastMCP server instance
@@ -125,7 +130,7 @@ async def conduct_research(topic: str) -> str:
         results = await orchestrator.conduct_research(topic)
 
         # Return the clean master synthesis report
-        return results['master_synthesis']
+        return results["master_synthesis"]
 
     except Exception as e:
         return f"Error during research: {str(e)}"

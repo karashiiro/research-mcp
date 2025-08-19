@@ -8,7 +8,7 @@ import os
 from strands.models.bedrock import BedrockModel
 from strands.models.model import Model
 from strands.models.ollama import OllamaModel
-from typing import Dict, Optional, Any
+from typing import Dict, Optional
 
 
 class ModelFactory:
@@ -62,10 +62,14 @@ class ModelFactory:
         temperature: float, max_tokens: Optional[int] = None, **kwargs
     ) -> BedrockModel:
         """Create a Bedrock model instance."""
+        # gpt-oss doesn't work for tool calls on Bedrock yet
+        # https://github.com/strands-agents/sdk-python/issues/644
         config = {
-            "model_id": os.getenv("BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"),
+            "model_id": os.getenv(
+                "BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-20250514-v1:0"
+            ),
             "temperature": temperature,
-            "max_tokens": max_tokens or 6000,
+            "max_tokens": max_tokens or 10000,
         }
         config.update(kwargs)
         return BedrockModel(**config)  # type: ignore[arg-type]

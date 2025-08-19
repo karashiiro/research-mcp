@@ -12,8 +12,16 @@ from ..types import SubtopicResearch
 
 
 def extract_content_text(c: ContentBlock) -> str:
-    """Extract text content from a content block."""
-    return c.get("text", "")
+    """Extract text content from a content block, handling reasoning content."""
+    # Handle direct text content
+    if "text" in c:
+        return c["text"]
+    # Handle reasoning content format
+    elif "reasoningContent" in c:
+        reasoning = c["reasoningContent"]
+        if "reasoningText" in reasoning and "text" in reasoning["reasoningText"]:
+            return reasoning["reasoningText"]["text"]
+    return ""
 
 
 def create_master_synthesis(

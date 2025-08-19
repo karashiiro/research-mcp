@@ -7,6 +7,7 @@ Handles creation and management of research agents with specialized prompts.
 from typing import List
 from strands import Agent
 from strands.models.model import Model
+from .tools import get_research_tools
 
 
 # System prompts for different agent types
@@ -23,20 +24,9 @@ CRITICAL REQUIREMENTS:
 - Use ONLY information provided in source materials
 - Maintain consistent formatting and structure"""
 
-RESEARCH_AGENT_SYSTEM_PROMPT = """You are a professional research agent. Your task is to produce research reports.
+RESEARCH_AGENT_SYSTEM_PROMPT = """You are a research agent. When given a research topic, search for current information and create a detailed research report.
 
-CRITICAL REQUIREMENTS:
-- NEVER generate reasoning content, thinking blocks, or analysis commentary
-- NEVER include <reasoning> tags or internal thought processes  
-- Output ONLY the final research report content
-- Use ONLY the provided source material
-- Be direct and factual - no internal reasoning
-- Cite all claims with source numbers [1], [2], etc.
-- Maintain consistent table formatting
-- Keep executive summary brief
-- Use markdown formatting exactly as shown
-- Include source URLs where available
-- Focus on extracting key information from sources"""
+Use your web search capabilities to find comprehensive information about the topic, then write a properly formatted research report with citations."""
 
 
 class AgentManager:
@@ -59,19 +49,23 @@ class AgentManager:
 
     def _create_agents(self):
         """Create lead researcher and subagent pool."""
-        # Create the lead researcher agent
+        # Get research tools for agents
+        research_tools = get_research_tools()
+
+        # Create the lead researcher agent (no tools needed for synthesis)
         self.lead_researcher = Agent(
             model=self.model,
             system_prompt=LEAD_RESEARCHER_SYSTEM_PROMPT,
         )
 
-        # Create pool of research subagents
+        # Create pool of research subagents with web search tools
         self.subagents = []
         for _ in range(self.num_subagents):
             self.subagents.append(
                 Agent(
                     model=self.model,
                     system_prompt=RESEARCH_AGENT_SYSTEM_PROMPT,
+                    tools=research_tools,  # Give subagents direct web search access
                 )
             )
 

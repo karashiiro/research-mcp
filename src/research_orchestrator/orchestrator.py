@@ -14,7 +14,6 @@ from strands.types.content import ContentBlock
 from .agents import create_agent_manager
 from .config import setup_logging
 from .models import create_model
-from .search import web_search
 from .reports import ReportFormatter
 from .types import (
     SubtopicResearch,
@@ -25,8 +24,16 @@ from .types import (
 
 
 def extract_content_text(c: ContentBlock) -> str:
-    """Extract text content from a content block."""
-    return c.get("text", "")
+    """Extract text content from a content block, handling reasoning content."""
+    # Handle direct text content
+    if "text" in c:
+        return c["text"]
+    # Handle reasoning content format
+    elif "reasoningContent" in c:
+        reasoning = c["reasoningContent"]
+        if "reasoningText" in reasoning and "text" in reasoning["reasoningText"]:
+            return reasoning["reasoningText"]["text"]
+    return ""
 
 
 class ResearchOrchestrator:
@@ -118,53 +125,27 @@ class ResearchOrchestrator:
         self, main_topic: str, subtopic: str, agent_id: int
     ) -> SubtopicResearch:
         """
-        Use a subagent to research a specific subtopic with improved error handling
+        Use a subagent to research a specific subtopic - agents now do their own searches
         """
         agent = self.agent_manager.get_subagent(agent_id)
 
-        # Create contextual search query by combining main topic with subtopic
-        contextual_query = f"{main_topic} {subtopic}"
-
         try:
-            # Perform real web search with caching
-            raw_search_data = await web_search(contextual_query, count=5)
+            # Create simple, direct prompt like our successful standalone test
+            prompt = f"""What current information can you find about "{subtopic}"? Please search for details and provide a comprehensive overview with sources."""
 
-            # Convert to expected format for compatibility
-            search_results = CompatSearchResults(
-                query=contextual_query,
-                results=[
-                    CompatSearchResultItem(
-                        title=result.get("title", ""),
-                        snippet=result.get("description", ""),
-                        url=result.get("url", ""),
-                    )
-                    for result in raw_search_data.get("results", [])
-                ],
-                error=None,
-            )
-
-            # Log search success
-            self.research_logger.info(
-                f"Search completed for '{contextual_query}': {len(search_results['results'])} results found"
-            )
-
-        except Exception as e:
-            # Handle search failures gracefully
-            self.research_logger.error(f"Search failed for '{contextual_query}': {e}")
-            search_results = CompatSearchResults(
-                query=contextual_query, results=[], error=str(e)
-            )
-
-        try:
-            # Create standardized research prompt with consistent formatting
-            prompt = ReportFormatter.create_standard_prompt(subtopic, search_results)
-
-            # Generate research summary
+            # Let the agent do its own searches and generate the report
             research_summary = agent(prompt)
 
             # Log research completion
             self.research_logger.info(
                 f"Research completed for '{subtopic}' by agent {agent_id}"
+            )
+
+            # Create empty search results for compatibility (agents did their own searches)
+            search_results = CompatSearchResults(
+                query=f"{main_topic} {subtopic}",
+                results=[],
+                error=None,
             )
 
         except Exception as e:
@@ -177,6 +158,13 @@ class ResearchOrchestrator:
                     "content": [{"text": f"Error generating research summary: {e}"}]
                 }
             }
+
+            # Create error search results for compatibility
+            search_results = CompatSearchResults(
+                query=f"{main_topic} {subtopic}",
+                results=[],
+                error=str(e),
+            )
 
         return SubtopicResearch(
             subtopic=subtopic,
@@ -222,13 +210,17 @@ class ResearchOrchestrator:
         )
 
         # Step 3.6: Add style guidelines
-        master_synthesis = master_synthesis + "\n\n" + """## Style Guidelines
+        master_synthesis = (
+            master_synthesis
+            + "\n\n"
+            + """## Style Guidelines
 When using findings from this report (including deriving new reports from it):
 - Carefully vet and maintain citations
 - Ensure all factual claims are properly cited
 - Use the provided references list for accurate source attribution
 - Follow the formatting guidelines to ensure clarity and consistency
 """
+        )
 
         # Step 4: Compile final report
         print("✅ Compiling final research package...")
