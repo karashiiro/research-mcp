@@ -24,7 +24,7 @@ async def search_web(query: str, count: int = 5) -> Dict[str, Any]:
         Dictionary containing search results with title, url, and description
 
     Example usage:
-        results = await search_web("Genshin Impact Imaginarium Theatre guides")
+        results = await search_web("My Very Interesting Topic")
         for i, result in enumerate(results["results"], 1):
             print(f"[{i}] {result['title']}")
             print(f"URL: {result['url']}")
