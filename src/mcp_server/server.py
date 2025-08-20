@@ -25,7 +25,7 @@ def mcp_safe_print(*args, **kwargs):
 
 builtins.print = mcp_safe_print
 
-from research_orchestrator import ResearchOrchestrator  # type: ignore
+from research_orchestrator import ResearchOrchestrator  # type: ignore  # noqa: E402
 
 # Create the FastMCP server instance
 mcp = FastMCP("Deep Research")

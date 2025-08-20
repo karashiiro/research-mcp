@@ -42,7 +42,7 @@ SEARCH EFFICIENTLY: Conduct up to 3 strategic searches to gather essential infor
 REPORT CONCISELY: After thorough research, create a focused report following this structure:
 
 **Report Format:**
-- Title: Clear subtopic title  
+- Title: Clear subtopic title
 - Key Findings: 3-5 essential bullet points with core information
 - Important Details: Brief explanations only where critical for understanding
 - Sources: Numbered citations [1], [2], etc. with URLs
@@ -50,7 +50,7 @@ REPORT CONCISELY: After thorough research, create a focused report following thi
 **Writing Style:**
 - Prioritize facts over explanations
 - Use bullet points and structured lists
-- Avoid lengthy prose paragraphs  
+- Avoid lengthy prose paragraphs
 - Focus on actionable insights
 - Keep total length under 800 words
 - Let the master synthesis handle comprehensive analysis

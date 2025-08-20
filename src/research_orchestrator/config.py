@@ -6,6 +6,7 @@ Handles environment configuration, logging setup, and model initialization.
 
 import logging
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from strands.telemetry import StrandsTelemetry
@@ -20,9 +21,8 @@ if "OTEL_EXPORTER_OTLP_ENDPOINT" in os.environ:
 
 
 def setup_logging():
-    """Configure strands logging to write to files."""
     # Create logs directory if it doesn't exist
-    os.makedirs("logs", exist_ok=True)
+    Path("logs").mkdir(parents=True, exist_ok=True)
 
     # Configure strands logger to write to file
     strands_logger = logging.getLogger("strands")

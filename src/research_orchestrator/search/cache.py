@@ -5,8 +5,8 @@ Provides caching functionality to reduce redundant API calls
 
 import hashlib
 import json
-import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from ..types import SearchResults
@@ -25,15 +25,15 @@ class SearchCache:
             cache_dir: Directory to store cache files
             cache_ttl_hours: How many hours to keep cached results (default: 24)
         """
-        self.cache_dir = cache_dir
+        self.cache_dir = Path(cache_dir)
         self.cache_ttl = timedelta(hours=cache_ttl_hours)
 
         # Create cache directory if it doesn't exist
-        os.makedirs(cache_dir, exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Create cache metadata file if it doesn't exist
-        self.metadata_file = os.path.join(cache_dir, "cache_metadata.json")
-        if not os.path.exists(self.metadata_file):
+        self.metadata_file = self.cache_dir / "cache_metadata.json"
+        if not self.metadata_file.exists():
             self._save_metadata({})
 
     def _generate_cache_key(self, query: str, count: int) -> str:
@@ -43,14 +43,14 @@ class SearchCache:
         cache_key = hashlib.md5(key_data.encode()).hexdigest()
         return cache_key
 
-    def _get_cache_filepath(self, cache_key: str) -> str:
+    def _get_cache_filepath(self, cache_key: str) -> Path:
         """Get the full filepath for a cache key"""
-        return os.path.join(self.cache_dir, f"{cache_key}.json")
+        return self.cache_dir / f"{cache_key}.json"
 
     def _load_metadata(self) -> dict[str, Any]:
         """Load cache metadata"""
         try:
-            with open(self.metadata_file, encoding="utf-8") as f:
+            with Path.open(self.metadata_file, encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
@@ -58,7 +58,7 @@ class SearchCache:
     def _save_metadata(self, metadata: dict[str, Any]):
         """Save cache metadata"""
         try:
-            with open(self.metadata_file, "w", encoding="utf-8") as f:
+            with Path.open(self.metadata_file, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Warning: Failed to save cache metadata: {e}")
@@ -86,7 +86,7 @@ class SearchCache:
         cache_filepath = self._get_cache_filepath(cache_key)
 
         # Check if cache file exists
-        if not os.path.exists(cache_filepath):
+        if not cache_filepath.exists():
             return None
 
         # Check metadata for expiration
@@ -102,7 +102,7 @@ class SearchCache:
 
         # Load and return cached results
         try:
-            with open(cache_filepath, encoding="utf-8") as f:
+            with Path.open(cache_filepath, encoding="utf-8") as f:
                 cached_results = json.load(f)
 
             print(f"🔄 Using cached results for: {query}")
@@ -126,7 +126,7 @@ class SearchCache:
 
         try:
             # Save the results
-            with open(cache_filepath, "w", encoding="utf-8") as f:
+            with cache_filepath.open("w", encoding="utf-8") as f:
                 json.dump(results, f, indent=2, ensure_ascii=False)
 
             # Update metadata
@@ -148,8 +148,8 @@ class SearchCache:
         """Remove an expired cache entry"""
         try:
             cache_filepath = self._get_cache_filepath(cache_key)
-            if os.path.exists(cache_filepath):
-                os.remove(cache_filepath)
+            if cache_filepath.exists():
+                cache_filepath.unlink()
 
             # Update metadata
             metadata = self._load_metadata()
@@ -179,10 +179,9 @@ class SearchCache:
         """Clear all cached results"""
         try:
             # Remove all cache files
-            for filename in os.listdir(self.cache_dir):
-                if filename.endswith(".json"):
-                    filepath = os.path.join(self.cache_dir, filename)
-                    os.remove(filepath)
+            for filepath in self.cache_dir.iterdir():
+                if filepath.suffix == ".json":
+                    filepath.unlink()
 
             # Reset metadata
             self._save_metadata({})

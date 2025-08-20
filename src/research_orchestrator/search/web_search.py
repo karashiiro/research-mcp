@@ -96,8 +96,8 @@ async def web_search(query: str, count: int = 10) -> SearchResults:
 
                 return search_results
 
-            except httpx.TimeoutException:
-                raise httpx.HTTPError("Search request timed out")
+            except httpx.TimeoutException as e:
+                raise httpx.HTTPError("Search request timed out") from e
             except httpx.HTTPStatusError as e:
                 # Handle rate limiting with exponential backoff
                 if e.response.status_code == 429 and attempt < max_retries:
@@ -108,9 +108,9 @@ async def web_search(query: str, count: int = 10) -> SearchResults:
                 else:
                     raise httpx.HTTPError(
                         f"Search API returned status {e.response.status_code}: {e.response.text}"
-                    )
+                    ) from e
             except Exception as e:
-                raise httpx.HTTPError(f"Search request failed: {str(e)}")
+                raise httpx.HTTPError(f"Search request failed: {str(e)}") from e
 
         # If we get here, all retries failed
         raise httpx.HTTPError("Maximum retries exceeded for rate limited requests")
