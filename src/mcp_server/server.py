@@ -30,17 +30,6 @@ from research_orchestrator import ResearchOrchestrator  # type: ignore  # noqa: 
 # Create the FastMCP server instance
 mcp = FastMCP("Deep Research")
 
-# Global orchestrator instance
-_orchestrator: ResearchOrchestrator | None = None
-
-
-def get_orchestrator() -> ResearchOrchestrator:
-    """Get or create the research orchestrator instance."""
-    global _orchestrator
-    if _orchestrator is None:
-        _orchestrator = ResearchOrchestrator()
-    return _orchestrator
-
 
 @mcp.tool()
 async def conduct_research(topic: str) -> str:
@@ -122,7 +111,7 @@ async def conduct_research(topic: str) -> str:
     Returns:
         Complete research report with master synthesis and individual findings
     """
-    orchestrator = get_orchestrator()
+    orchestrator = ResearchOrchestrator()
 
     try:
         # Conduct full research orchestration

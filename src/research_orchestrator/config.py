@@ -20,7 +20,7 @@ if "OTEL_EXPORTER_OTLP_ENDPOINT" in os.environ:
     strands_telemetry.setup_otlp_exporter()
 
 
-def setup_logging():
+def create_logger():
     # Create logs directory if it doesn't exist
     Path("logs").mkdir(parents=True, exist_ok=True)
 
@@ -46,4 +46,14 @@ def setup_logging():
     research_logger.setLevel(logging.INFO)
     research_logger.addHandler(research_handler)
 
+    return research_logger
+
+
+research_logger: logging.Logger | None = None
+
+
+def setup_logging():
+    global research_logger
+    if research_logger is None:
+        research_logger = create_logger()
     return research_logger
