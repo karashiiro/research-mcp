@@ -104,14 +104,26 @@ class ModelFactory:
         model_id: Optional[str] = None,
         **kwargs,
     ) -> BedrockModel:
-        """Create a Bedrock model instance."""
+        """Create a Bedrock model instance with model-specific token limits."""
         # gpt-oss doesn't work for tool calls on Bedrock yet
         # https://github.com/strands-agents/sdk-python/issues/644
+        final_model_id = model_id or os.getenv(
+            "BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-20250514-v1:0"
+        )
+
+        # Set appropriate max_tokens based on model capabilities
+        # Research shows Claude 3.5 Sonnet has 8192 output token limit (beta)
+        if max_tokens is None:
+            if "claude-3-5-sonnet" in final_model_id:
+                max_tokens = 8000  # Safe limit for Claude 3.5 Sonnet (8192 limit)
+            else:
+                max_tokens = 10000  # Default for other Claude models
+
         config = {
-            "model_id": model_id
-            or os.getenv("BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-20250514-v1:0"),
+            "model_id": final_model_id,
             "temperature": temperature,
-            "max_tokens": max_tokens or 10000,
+            "max_tokens": max_tokens,
+            "streaming": False,  # Required for some models to avoid tool use issues
         }
         config.update(kwargs)
         return BedrockModel(**config)  # type: ignore[arg-type]
