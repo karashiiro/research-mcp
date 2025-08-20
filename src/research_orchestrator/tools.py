@@ -4,15 +4,16 @@ Research Tools for Agents
 Python tools that can be used by research agents for direct web searching.
 """
 
-from typing import Dict, Any, List
+from typing import Any
+
 from strands import tool
 
-from .types import SearchResults
 from .search.web_search import web_search
+from .types import SearchResults
 
 
 @tool
-async def search_web(query: str, count: int = 5) -> Dict[str, Any]:
+async def search_web(query: str, count: int = 5) -> dict[str, Any]:
     """
     Perform a web search and return results.
 
@@ -35,7 +36,7 @@ async def search_web(query: str, count: int = 5) -> Dict[str, Any]:
         search_results: SearchResults = await web_search(query, count)
 
         # Convert to agent-friendly format
-        formatted_results: Dict[str, Any] = {
+        formatted_results: dict[str, Any] = {
             "query": search_results["query"],
             "total_results": search_results["total_results"],
             "results": [],
@@ -67,7 +68,7 @@ async def search_web(query: str, count: int = 5) -> Dict[str, Any]:
         }
 
 
-def get_research_tools() -> List:
+def get_research_tools() -> list:
     """
     Get the list of tools available to research agents.
 

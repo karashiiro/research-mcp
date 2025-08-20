@@ -3,11 +3,12 @@ Search Result Caching Module
 Provides caching functionality to reduce redundant API calls
 """
 
+import hashlib
 import json
 import os
-import hashlib
-from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any
+
 from ..types import SearchResults
 
 
@@ -46,15 +47,15 @@ class SearchCache:
         """Get the full filepath for a cache key"""
         return os.path.join(self.cache_dir, f"{cache_key}.json")
 
-    def _load_metadata(self) -> Dict[str, Any]:
+    def _load_metadata(self) -> dict[str, Any]:
         """Load cache metadata"""
         try:
-            with open(self.metadata_file, "r", encoding="utf-8") as f:
+            with open(self.metadata_file, encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def _save_metadata(self, metadata: Dict[str, Any]):
+    def _save_metadata(self, metadata: dict[str, Any]):
         """Save cache metadata"""
         try:
             with open(self.metadata_file, "w", encoding="utf-8") as f:
@@ -70,7 +71,7 @@ class SearchCache:
         except (ValueError, TypeError):
             return True  # If we can't parse the time, consider it expired
 
-    def get(self, query: str, count: int = 10) -> Optional[SearchResults]:
+    def get(self, query: str, count: int = 10) -> SearchResults | None:
         """
         Get cached search results if available and not expired
 
@@ -101,7 +102,7 @@ class SearchCache:
 
         # Load and return cached results
         try:
-            with open(cache_filepath, "r", encoding="utf-8") as f:
+            with open(cache_filepath, encoding="utf-8") as f:
                 cached_results = json.load(f)
 
             print(f"🔄 Using cached results for: {query}")

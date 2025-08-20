@@ -8,7 +8,8 @@ Uses async iterators and framework-native optimizations for enhanced performance
 import time
 import uuid
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
+
 from strands.types.content import ContentBlock
 
 from .agents import create_agent_manager
@@ -47,7 +48,7 @@ class ResearchOrchestrator:
         self.research_logger = setup_logging()
 
         # Streaming performance tracking
-        self.performance_buffer: Dict[str, Any] = {}
+        self.performance_buffer: dict[str, Any] = {}
 
     async def streaming_research_workflow(self, main_topic: str) -> ResearchResults:
         """
@@ -72,7 +73,7 @@ class ResearchOrchestrator:
 
 STREAMING WORKFLOW:
 1. Generate subtopics one by one (don't wait for all!)
-2. Use research_specialist tool to get concurrent research reports  
+2. Use research_specialist tool to get concurrent research reports
 3. Start creating synthesis sections as research data becomes available
 4. Build comprehensive master report progressively
 
@@ -88,7 +89,7 @@ Process everything in REAL-TIME - don't wait for completion before starting next
             # Use async iterator for real-time processing
             accumulated_text = ""
             tool_usage_count = 0
-            performance_metrics: Dict[str, Any] = {
+            performance_metrics: dict[str, Any] = {
                 "tools": {},
                 "tokens": {"input": 0, "output": 0},
                 "timing": {},
@@ -198,7 +199,7 @@ Process everything in REAL-TIME - don't wait for completion before starting next
 
 COMPLETE WORKFLOW:
 1. Generate 2-5 focused subtopics for comprehensive coverage
-2. Use research_specialist tool with ALL subtopics to get concurrent research reports  
+2. Use research_specialist tool with ALL subtopics to get concurrent research reports
 3. Create a comprehensive master synthesis report combining all findings
 4. Include proper citations, structure, and formatting
 

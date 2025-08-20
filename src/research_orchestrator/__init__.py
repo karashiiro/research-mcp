@@ -5,8 +5,8 @@ A sophisticated multi-agent research orchestration system built on the Strands A
 Provides hierarchical research coordination with lead researchers and specialized subagents.
 """
 
-from .orchestrator import ResearchOrchestrator
 from .config import setup_logging
+from .orchestrator import ResearchOrchestrator
 
 __version__ = "1.0.0"
 __all__ = ["ResearchOrchestrator", "setup_logging"]

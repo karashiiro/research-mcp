@@ -5,16 +5,16 @@ Handles creation and management of research agents with specialized prompts.
 Implements agents-as-tools pattern for modular research orchestration.
 """
 
-from typing import List, Optional
 import asyncio
+import os
 import time
 import uuid
-import os
+
 from strands import Agent, tool
 from strands.models.model import Model
-from .tools import get_research_tools
-from .models import ModelFactory
 
+from .models import ModelFactory
+from .tools import get_research_tools
 
 # System prompts for different agent types
 LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who performs three main tasks:
@@ -47,7 +47,7 @@ class AgentManager:
         self,
         model: Model,
         num_subagents: int = 5,
-        subagent_model_pool: Optional[List[str]] = None,
+        subagent_model_pool: list[str] | None = None,
     ):
         """
         Initialize the agent manager with support for hybrid model pools.
@@ -61,8 +61,8 @@ class AgentManager:
         self.num_subagents = num_subagents
         self.subagent_model_pool = subagent_model_pool or []
         self.lead_researcher = None
-        self.subagents: List[Agent] = []
-        self.subagent_models: List[Model] = []  # Store created subagent models
+        self.subagents: list[Agent] = []
+        self.subagent_models: list[Model] = []  # Store created subagent models
 
         self._create_agents()
 
@@ -144,7 +144,7 @@ def create_agent_manager(model: Model, num_subagents: int = 5) -> AgentManager:
         ]
         print(f"🎭 Using subagent model pool: {subagent_model_pool}")
     else:
-        print(f"🎭 No subagent model pool specified, using main model for all agents")
+        print("🎭 No subagent model pool specified, using main model for all agents")
 
     return AgentManager(model, num_subagents, subagent_model_pool)
 
@@ -163,7 +163,7 @@ def create_research_specialist_tool(agent_manager):
     """
 
     @tool
-    def streaming_research_specialist(queries: List[str]) -> List[str]:
+    def streaming_research_specialist(queries: list[str]) -> list[str]:
         """
         Streaming research agent with real-time processing.
         Uses async iterators for enhanced speed and efficiency.
@@ -200,8 +200,8 @@ def create_research_specialist_tool(agent_manager):
 
 
 async def _conduct_concurrent_research_with_agents(
-    queries: List[str], agent_manager, tool_id: str
-) -> List[str]:
+    queries: list[str], agent_manager, tool_id: str
+) -> list[str]:
     """
     Conduct research for multiple queries concurrently using AgentManager's diverse subagent pool!
 
@@ -259,7 +259,7 @@ async def _conduct_concurrent_research_with_agents(
     results = await asyncio.gather(*research_tasks, return_exceptions=True)
 
     # Convert any exceptions to error strings
-    processed_results: List[str] = []
+    processed_results: list[str] = []
     for i, result in enumerate(results):
         if isinstance(result, Exception):
             processed_results.append(
@@ -279,8 +279,8 @@ async def _conduct_concurrent_research_with_agents(
 
 
 async def _conduct_streaming_research_with_agents(
-    queries: List[str], agent_manager, tool_id: str
-) -> List[str]:
+    queries: list[str], agent_manager, tool_id: str
+) -> list[str]:
     """
     Stable research with blocking calls to avoid ValidationExceptions.
     Uses the existing concurrent research function for reliability.

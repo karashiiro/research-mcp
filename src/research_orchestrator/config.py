@@ -6,6 +6,7 @@ Handles environment configuration, logging setup, and model initialization.
 
 import logging
 import os
+
 from dotenv import load_dotenv
 from strands.telemetry import StrandsTelemetry
 

@@ -1,11 +1,12 @@
-import os
 import asyncio
 import itertools
-from typing import List
+import os
+
 import httpx
 from httpcore._async.connection import exponential_backoff
+
+from ..types import SearchResultItem, SearchResults
 from .cache import get_cache
-from ..types import SearchResults, SearchResultItem
 
 
 async def web_search(query: str, count: int = 10) -> SearchResults:
@@ -69,7 +70,7 @@ async def web_search(query: str, count: int = 10) -> SearchResults:
                 data = response.json()
 
                 # Extract and format results
-                results: List[SearchResultItem] = []
+                results: list[SearchResultItem] = []
                 if "web" in data and "results" in data["web"]:
                     for result in data["web"]["results"]:
                         results.append(

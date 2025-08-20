@@ -27,7 +27,6 @@ builtins.print = mcp_safe_print
 
 from research_orchestrator import ResearchOrchestrator  # type: ignore
 
-
 # Create the FastMCP server instance
 mcp = FastMCP("Deep Research")
 

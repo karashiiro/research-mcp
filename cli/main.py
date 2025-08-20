@@ -5,16 +5,17 @@ A sophisticated multi-agent research orchestration system that coordinates
 lead researchers and specialized subagents for comprehensive topic investigation.
 """
 
-import asyncio
 import argparse
+import asyncio
 import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.research_orchestrator import ResearchOrchestrator
 from strands.types.content import ContentBlock
+
+from src.research_orchestrator import ResearchOrchestrator
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -51,18 +52,18 @@ Examples:
         results = await orchestrator.conduct_research(research_topic)
 
         print("\n✨ Research Complete!")
-        print(f"📋 Final Report Summary:")
+        print("📋 Final Report Summary:")
         print(f"   Main Topic: {results['main_topic']}")
         print(f"   Subtopics Researched: {results['subtopics_count']}")
         print(f"   Generated At: {results['generated_at']}")
 
         # Display master synthesis
-        print(f"\n🎯 MASTER SYNTHESIS REPORT:")
+        print("\n🎯 MASTER SYNTHESIS REPORT:")
         print("=" * 60)
         print(results["master_synthesis"])
         print("=" * 60)
 
-        print(f"\n📚 Individual Subtopic Research:")
+        print("\n📚 Individual Subtopic Research:")
         for i, research in enumerate(results["subtopic_research"], 1):
             print(f"\n--- Subtopic {i}: {research['subtopic']} ---")
             print(f"Agent ID: {research['agent_id']}")

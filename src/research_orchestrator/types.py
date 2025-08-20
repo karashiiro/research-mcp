@@ -4,7 +4,7 @@ Common type definitions for the research orchestrator.
 TypedDict definitions for better type safety and clarity.
 """
 
-from typing import TypedDict, List, Any
+from typing import Any, TypedDict
 
 
 class SearchResultItem(TypedDict):
@@ -21,7 +21,7 @@ class SearchResults(TypedDict):
     """Complete search results from web search."""
 
     query: str
-    results: List[SearchResultItem]
+    results: list[SearchResultItem]
     total_results: int
     api_response: Any  # Raw API response data
 
@@ -31,7 +31,7 @@ class ResearchResults(TypedDict):
 
     main_topic: str
     subtopics_count: int
-    subtopic_research: List[Any]  # Now always empty in hybrid approach
+    subtopic_research: list[Any]  # Now always empty in hybrid approach
     master_synthesis: str
     summary: str
     generated_at: str

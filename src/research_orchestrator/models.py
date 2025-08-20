@@ -5,10 +5,10 @@ Provides model creation and abstractions for different providers.
 """
 
 import os
+
 from strands.models.bedrock import BedrockModel
 from strands.models.model import Model
 from strands.models.ollama import OllamaModel
-from typing import Dict, Optional
 
 
 class ModelFactory:
@@ -16,9 +16,9 @@ class ModelFactory:
 
     @staticmethod
     def create_model(
-        model_type: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        model_type: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> Model:
         """
@@ -49,9 +49,9 @@ class ModelFactory:
     @staticmethod
     def create_model_with_id(
         model_id: str,
-        model_type: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        model_type: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> Model:
         """
@@ -100,8 +100,8 @@ class ModelFactory:
     @staticmethod
     def _create_bedrock_model(
         temperature: float,
-        max_tokens: Optional[int] = None,
-        model_id: Optional[str] = None,
+        max_tokens: int | None = None,
+        model_id: str | None = None,
         **kwargs,
     ) -> BedrockModel:
         """Create a Bedrock model instance with model-specific token limits."""
@@ -114,7 +114,7 @@ class ModelFactory:
         # Set appropriate max_tokens based on model capabilities
         # Research shows Claude 3.5 Sonnet has 8192 output token limit (beta)
         if max_tokens is None:
-            if "claude-3-5-sonnet" in final_model_id:
+            if final_model_id and "claude-3-5-sonnet" in final_model_id:
                 max_tokens = 8000  # Safe limit for Claude 3.5 Sonnet (8192 limit)
             else:
                 max_tokens = 10000  # Default for other Claude models
@@ -129,7 +129,7 @@ class ModelFactory:
         return BedrockModel(**config)  # type: ignore[arg-type]
 
     @staticmethod
-    def get_supported_providers() -> Dict[str, str]:
+    def get_supported_providers() -> dict[str, str]:
         """Get list of supported model providers."""
         return {"ollama": "Local Ollama server", "bedrock": "AWS Bedrock service"}
 
