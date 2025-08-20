@@ -51,10 +51,12 @@ class ResearchOrchestrator:
         """
         workflow_id = str(uuid.uuid4())
         workflow_start = time.time()
-        self.research_logger.info(f"🕐 [{workflow_id}] Starting complete research workflow for: {main_topic}")
-        
+        self.research_logger.info(
+            f"🕐 [{workflow_id}] Starting complete research workflow for: {main_topic}"
+        )
+
         lead_researcher = self.agent_manager.get_lead_researcher()
-        
+
         prompt = f"""As lead researcher, conduct a complete research workflow for the topic: "{main_topic}"
 
 COMPLETE WORKFLOW:
@@ -67,19 +69,25 @@ Return ONLY the final master synthesis report as your complete response. No JSON
 
         try:
             delegation_start = time.time()
-            self.research_logger.info(f"⏱️ [{workflow_id}] Delegating to lead researcher...")
-            
+            self.research_logger.info(
+                f"⏱️ [{workflow_id}] Delegating to lead researcher..."
+            )
+
             response = lead_researcher(prompt)
-            
+
             delegation_end = time.time()
             delegation_time = delegation_end - delegation_start
-            self.research_logger.info(f"✅ [{workflow_id}] Lead researcher completed in {delegation_time:.2f} seconds")
-            
+            self.research_logger.info(
+                f"✅ [{workflow_id}] Lead researcher completed in {delegation_time:.2f} seconds"
+            )
+
             processing_start = time.time()
             self.research_logger.info(f"🔄 [{workflow_id}] Processing response...")
-            
-            master_synthesis = "".join(map(extract_content_text, response.message["content"]))
-            
+
+            master_synthesis = "".join(
+                map(extract_content_text, response.message["content"])
+            )
+
             final_report = ResearchResults(
                 main_topic=main_topic,
                 subtopics_count=0,
@@ -93,17 +101,25 @@ Return ONLY the final master synthesis report as your complete response. No JSON
             processing_time = processing_end - processing_start
             workflow_end = time.time()
             total_time = workflow_end - workflow_start
-            
-            self.research_logger.info(f"⚡ [{workflow_id}] Response processing completed in {processing_time:.2f} seconds")
-            self.research_logger.info(f"🎯 [{workflow_id}] Complete research workflow finished for '{main_topic}' in {total_time:.2f} seconds total")
-            
+
+            self.research_logger.info(
+                f"⚡ [{workflow_id}] Response processing completed in {processing_time:.2f} seconds"
+            )
+            self.research_logger.info(
+                f"🎯 [{workflow_id}] Complete research workflow finished for '{main_topic}' in {total_time:.2f} seconds total"
+            )
+
             return final_report
 
         except Exception as e:
             workflow_end = time.time()
             total_time = workflow_end - workflow_start
-            self.research_logger.error(f"❌ [{workflow_id}] Complete workflow delegation failed for '{main_topic}' after {total_time:.2f} seconds: {e}")
-            raise RuntimeError(f"Research workflow failed for topic '{main_topic}': {str(e)}") from e
+            self.research_logger.error(
+                f"❌ [{workflow_id}] Complete workflow delegation failed for '{main_topic}' after {total_time:.2f} seconds: {e}"
+            )
+            raise RuntimeError(
+                f"Research workflow failed for topic '{main_topic}': {str(e)}"
+            ) from e
 
     async def conduct_research(self, main_topic: str) -> ResearchResults:
         """
@@ -113,6 +129,6 @@ Return ONLY the final master synthesis report as your complete response. No JSON
         self.research_logger.info("Delegating research workflow to lead researcher")
 
         final_report = await self.complete_research_workflow(main_topic)
-        
+
         self.research_logger.info("Research workflow completed")
         return final_report

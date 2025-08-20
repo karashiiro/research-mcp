@@ -8,7 +8,7 @@ import os
 import hashlib
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-from ..types import SearchResults, CacheMetadata, CacheStats
+from ..types import SearchResults
 
 
 class SearchCache:
@@ -173,27 +173,6 @@ class SearchCache:
 
         if expired_keys:
             print(f"🧹 Cleaned up {len(expired_keys)} expired cache entries")
-
-    def get_cache_stats(self) -> CacheStats:
-        """Get statistics about the cache"""
-        metadata = self._load_metadata()
-
-        total_entries = len(metadata)
-        expired_count = 0
-        total_results = 0
-
-        for entry in metadata.values():
-            if self._is_cache_expired(entry["cached_at"]):
-                expired_count += 1
-            total_results += entry.get("results_count", 0)
-
-        return {
-            "total_entries": total_entries,
-            "cache_size_mb": 0.0,  # Could calculate actual size if needed
-            "oldest_entry": None,  # Could implement if needed
-            "newest_entry": None,  # Could implement if needed
-            "hit_rate": None,  # Could implement if needed
-        }
 
     def clear_all(self):
         """Clear all cached results"""
