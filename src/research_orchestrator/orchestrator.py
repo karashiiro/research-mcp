@@ -206,7 +206,12 @@ COMPLETE WORKFLOW:
 3. Create a comprehensive master synthesis report combining all findings
 4. Include proper citations, structure, and formatting
 
-Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings."""
+CRITICAL: Your final synthesis report MUST include:
+- Numbered citations [1], [2], [3] throughout the text for every factual claim
+- A complete "Sources" section at the end listing all URLs from the research specialist reports
+- Preserve ALL citations from the individual research reports - never omit any sources
+
+Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings with complete citations."""
 
         try:
             delegation_start = time.time()

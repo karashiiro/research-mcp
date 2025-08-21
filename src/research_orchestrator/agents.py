@@ -33,7 +33,14 @@ CRITICAL REQUIREMENTS:
 - The research_specialist tool ONLY accepts lists of queries and returns lists of reports
 - Always provide ALL subtopics as a single list to research_specialist for concurrent processing
 - Use ONLY information provided in source materials and tool results
-- Maintain consistent formatting and structure"""
+- Maintain consistent formatting and structure
+
+CITATION REQUIREMENTS:
+- ALWAYS preserve and include ALL citations from research specialist reports
+- Use numbered citations [1], [2], [3] throughout the synthesis
+- ALWAYS include a complete "Sources" section at the end with all URLs
+- Every factual claim must have a citation reference
+- Never remove or omit citations from the final report"""
 
 RESEARCH_AGENT_SYSTEM_PROMPT = """You are a research agent specializing in CONCISE, focused research reports.
 
