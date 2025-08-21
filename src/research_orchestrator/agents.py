@@ -72,6 +72,7 @@ class AgentManager:
         model: Model,
         num_subagents: int = 5,
         subagent_model_pool: list[str] | None = None,
+        progress_callback=None,
     ):
         """
         Initialize the agent manager with support for hybrid model pools.
@@ -80,10 +81,12 @@ class AgentManager:
             model: Model instance to use for lead researcher
             num_subagents: Number of research subagents to create
             subagent_model_pool: Optional list of model IDs for subagents. If None, uses main model.
+            progress_callback: Optional callback for progress updates
         """
         self.model = model  # Lead researcher model
         self.num_subagents = num_subagents
         self.subagent_model_pool = subagent_model_pool or []
+        self.progress_callback = progress_callback
         self.lead_researcher = None
         self.subagents: list[Agent] = []
         self.subagent_models: list[Model] = []  # Store created subagent models
@@ -153,7 +156,9 @@ class AgentManager:
         return self.subagents[agent_id % len(self.subagents)]
 
 
-def create_agent_manager(model: Model, num_subagents: int = 5) -> AgentManager:
+def create_agent_manager(
+    model: Model, progress_callback=None, num_subagents: int = 5
+) -> AgentManager:
     """Convenience function to create an agent manager with hybrid model support."""
     # Read subagent model pool from environment
     subagent_models_env = os.getenv("BEDROCK_SUBAGENT_MODELS")
@@ -170,7 +175,7 @@ def create_agent_manager(model: Model, num_subagents: int = 5) -> AgentManager:
     else:
         print("🎭 No subagent model pool specified, using main model for all agents")
 
-    return AgentManager(model, num_subagents, subagent_model_pool)
+    return AgentManager(model, num_subagents, subagent_model_pool, progress_callback)
 
 
 # Agent-as-Tools Implementation
@@ -266,6 +271,15 @@ async def _conduct_concurrent_research_with_agents(
                 f"  ✅ [{query_id}] Completed research for '{query[:50]}...' in {query_time:.2f} seconds"
             )
 
+            # Notify progress callback if available
+            if agent_manager.progress_callback:
+                # We'll track this as a completed subtopic
+                agent_manager.progress_callback(
+                    "subtopic_completed",
+                    subtopic=query[:50],
+                    completed_count=query_index + 1,
+                )
+
             return result
         except Exception as e:
             query_end = time.time()
@@ -274,6 +288,10 @@ async def _conduct_concurrent_research_with_agents(
                 f"  ❌ [{query_id}] Failed research for '{query[:50]}...' in {query_time:.2f} seconds: {e}"
             )
             return f"Research failed for '{query}': {str(e)}"
+
+    # Notify start of research if callback available
+    if agent_manager.progress_callback:
+        agent_manager.progress_callback("research_started", total_count=len(queries))
 
     # Execute all research queries concurrently using diverse subagent models
     print(f"⚡ [{tool_id}] Dispatching concurrent research tasks...")
@@ -298,6 +316,12 @@ async def _conduct_concurrent_research_with_agents(
     print(
         f"🎯 [{tool_id}] Concurrent research completed in {concurrent_time:.2f} seconds"
     )
+
+    # Notify research completion
+    if agent_manager.progress_callback:
+        agent_manager.progress_callback(
+            "research_completed", total_time=concurrent_time
+        )
 
     return processed_results
 

@@ -37,18 +37,21 @@ class ResearchOrchestrator:
     Uses async iterators for performance optimization.
     """
 
-    def __init__(self):
+    def __init__(self, progress_callback=None):
         # Create model instance for all agents
         self.model = create_model()
 
         # Create agent manager with callback support
-        self.agent_manager = create_agent_manager(self.model)
+        self.agent_manager = create_agent_manager(self.model, progress_callback)
 
         # Set up logging
         self.research_logger = setup_logging()
 
         # Streaming performance tracking
         self.performance_buffer: dict[str, Any] = {}
+
+        # Progress callback for real-time updates
+        self.progress_callback = progress_callback
 
     async def streaming_research_workflow(self, main_topic: str) -> ResearchResults:
         """
