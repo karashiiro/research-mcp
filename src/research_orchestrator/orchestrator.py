@@ -190,12 +190,31 @@ Process everything in REAL-TIME - don't wait for completion before starting next
             all_sources = getattr(self.agent_manager, "last_research_sources", [])
             source_count = len(all_sources)
 
+            # Get the master synthesis text
+            final_synthesis = (
+                accumulated_text or self.performance_buffer["partial_synthesis"]
+            )
+
+            # Programmatically append Additional Research Sources section
+            if all_sources:
+                additional_sources_section = "\n\n## Additional Research Sources\n\n"
+                additional_sources_section += "The following sources were also consulted during research but may not be directly cited above:\n\n"
+
+                for source in all_sources:
+                    additional_sources_section += f"- {source}\n"
+
+                additional_sources_section += (
+                    f"\nTotal: {source_count} unique sources consulted"
+                )
+
+                # Append to final synthesis
+                final_synthesis += additional_sources_section
+
             final_report = ResearchResults(
                 main_topic=main_topic,
                 subtopics_count=0,  # Handled via streaming
                 subtopic_research=[],  # Handled via streaming
-                master_synthesis=accumulated_text
-                or self.performance_buffer["partial_synthesis"],
+                master_synthesis=final_synthesis,
                 summary=f"Streaming research conducted on '{main_topic}' with real-time processing | {perf_summary} | {source_count} sources consulted",
                 generated_at=datetime.now().isoformat(),
                 total_unique_sources=source_count,
@@ -241,22 +260,12 @@ COMPLETE WORKFLOW:
 3. Create a comprehensive master synthesis report combining all findings
 4. Include proper citations, structure, and formatting
 
-CRITICAL: Your final synthesis report MUST include TWO source sections:
+CRITICAL: Your final synthesis report MUST include proper citations:
 
-1. "Sources" section - Standard numbered citations [1], [2], [3] for sources actually cited in the report text
-2. "Additional Research Sources" section - Complete list of ALL unique URLs discovered during research
-
-MANDATORY: After your standard "Sources" section, you MUST include this exact format:
-
-## Additional Research Sources
-The following sources were also consulted during research but may not be directly cited above:
-- [list every unique URL from all research specialist reports]
-- [include ALL URLs, not just cited ones]
-- [do not skip this section - it is required]
-
-Total: [count] unique sources consulted
-
-FAILURE TO INCLUDE THE "ADDITIONAL RESEARCH SOURCES" SECTION IS UNACCEPTABLE. This section provides transparency about the full research scope and is REQUIRED in every report.
+- Use numbered citations [1], [2], [3] throughout the text for every factual claim
+- Include a complete "Sources" section at the end listing all URLs used in numbered citations
+- Preserve ALL citations from the individual research reports - never omit any sources
+- Ensure every [1], [2], [3] reference in the text corresponds to a URL in the Sources section
 
 Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings with complete citations and source transparency."""
 
@@ -284,6 +293,21 @@ Return ONLY the final master synthesis report as your complete response. No JSON
             # Get source information from agent manager (set during research specialist tool execution)
             all_sources = getattr(self.agent_manager, "last_research_sources", [])
             source_count = len(all_sources)
+
+            # Programmatically append Additional Research Sources section
+            if all_sources:
+                additional_sources_section = "\n\n## Additional Research Sources\n\n"
+                additional_sources_section += "The following sources were also consulted during research but may not be directly cited above:\n\n"
+
+                for source in all_sources:
+                    additional_sources_section += f"- {source}\n"
+
+                additional_sources_section += (
+                    f"\nTotal: {source_count} unique sources consulted"
+                )
+
+                # Append to master synthesis
+                master_synthesis += additional_sources_section
 
             final_report = ResearchResults(
                 main_topic=main_topic,
