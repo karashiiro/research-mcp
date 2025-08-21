@@ -35,3 +35,5 @@ class ResearchResults(TypedDict):
     master_synthesis: str
     summary: str
     generated_at: str
+    total_unique_sources: int
+    all_sources_used: list[str]

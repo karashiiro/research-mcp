@@ -178,9 +178,12 @@ def execute_research_job_sync(job_id: str, topic: str) -> None:
             # Conduct full research orchestration
             results = loop.run_until_complete(orchestrator.conduct_research(topic))
 
-            # Update job with results
+            # Update job with results (store the full results object for source tracking)
             update_job_status(
-                job_id, JobStatus.COMPLETED, result=results["master_synthesis"]
+                job_id,
+                JobStatus.COMPLETED,
+                result=results["master_synthesis"],
+                full_results=results,
             )
 
             # Schedule cleanup after 1 hour
@@ -410,13 +413,19 @@ Next step: Call wait_for_research_report(30) to wait, then get_research_report("
             completed_at = job.get("completed_at", "Unknown")
             result = job.get("result", "No result available")
 
+            # Get source statistics from full results if available
+            full_results = job.get("full_results", {})
+            source_count = full_results.get("total_unique_sources", 0)
+            source_info = ""
+            if source_count > 0:
+                source_info = f"📊 Research consulted {source_count} unique sources\n\n"
+
             return f"""Research Job Status: COMPLETED ✅
 
 Job ID: {job_id}
 Topic: {topic}
 Completed: {completed_at}
-
-Here is your comprehensive research report:
+{source_info}Here is your comprehensive research report:
 
 {result}"""
 

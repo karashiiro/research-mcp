@@ -324,6 +324,31 @@ async def _conduct_concurrent_research_with_agents(
         f"🎯 [{tool_id}] Concurrent research completed in {concurrent_time:.2f} seconds"
     )
 
+    # Extract all unique sources from research reports
+    from .orchestrator import extract_sources_from_report
+
+    all_sources = []
+    for report in processed_results:
+        if isinstance(report, str):
+            sources = extract_sources_from_report(report)
+            all_sources.extend(sources)
+
+    # Remove duplicates while preserving order
+    unique_sources = []
+    seen_sources = set()
+    for source in all_sources:
+        if source not in seen_sources:
+            unique_sources.append(source)
+            seen_sources.add(source)
+
+    print(
+        f"📊 [{tool_id}] Found {len(unique_sources)} unique sources across all research"
+    )
+
+    # Store source information in agent manager for later retrieval
+    # (We'll use this in the orchestrator)
+    agent_manager.last_research_sources = unique_sources
+
     # Notify research completion
     if agent_manager.progress_callback:
         agent_manager.progress_callback(

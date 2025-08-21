@@ -5,6 +5,7 @@ Streaming architecture with real-time event processing.
 Uses async iterators and framework-native optimizations for enhanced performance.
 """
 
+import re
 import time
 import uuid
 from datetime import datetime
@@ -29,6 +30,34 @@ def extract_content_text(c: ContentBlock) -> str:
         if "reasoningText" in reasoning and "text" in reasoning["reasoningText"]:
             return reasoning["reasoningText"]["text"]
     return ""
+
+
+def extract_sources_from_report(report: str) -> list[str]:
+    """Extract all unique URLs from a research report.
+
+    Args:
+        report: The research report text containing URLs
+
+    Returns:
+        List of unique URLs found in the report
+    """
+    # Pattern to match URLs (http or https)
+    url_pattern = r"https?://[^\s\]\)>]+"
+
+    # Find all URLs in the report
+    urls = re.findall(url_pattern, report)
+
+    # Remove duplicates while preserving order
+    unique_urls = []
+    seen = set()
+    for url in urls:
+        # Clean up URLs that might have trailing punctuation
+        cleaned_url = url.rstrip(".,;:!?")
+        if cleaned_url not in seen:
+            unique_urls.append(cleaned_url)
+            seen.add(cleaned_url)
+
+    return unique_urls
 
 
 class ResearchOrchestrator:
@@ -157,14 +186,20 @@ Process everything in REAL-TIME - don't wait for completion before starting next
             perf_summary = f"Tools used: {tool_usage_count} | Output tokens: {performance_metrics['tokens']['output']} | "
             perf_summary += f"Streaming duration: {streaming_time:.2f}s"
 
+            # Get source information from agent manager (set during research specialist tool execution)
+            all_sources = getattr(self.agent_manager, "last_research_sources", [])
+            source_count = len(all_sources)
+
             final_report = ResearchResults(
                 main_topic=main_topic,
                 subtopics_count=0,  # Handled via streaming
                 subtopic_research=[],  # Handled via streaming
                 master_synthesis=accumulated_text
                 or self.performance_buffer["partial_synthesis"],
-                summary=f"Streaming research conducted on '{main_topic}' with real-time processing | {perf_summary}",
+                summary=f"Streaming research conducted on '{main_topic}' with real-time processing | {perf_summary} | {source_count} sources consulted",
                 generated_at=datetime.now().isoformat(),
+                total_unique_sources=source_count,
+                all_sources_used=all_sources,
             )
 
             workflow_end = time.time()
@@ -206,12 +241,24 @@ COMPLETE WORKFLOW:
 3. Create a comprehensive master synthesis report combining all findings
 4. Include proper citations, structure, and formatting
 
-CRITICAL: Your final synthesis report MUST include:
-- Numbered citations [1], [2], [3] throughout the text for every factual claim
-- A complete "Sources" section at the end listing all URLs from the research specialist reports
-- Preserve ALL citations from the individual research reports - never omit any sources
+CRITICAL: Your final synthesis report MUST include TWO source sections:
 
-Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings with complete citations."""
+1. "Sources" section - Standard numbered citations [1], [2], [3] for sources actually cited in the report text
+2. "Additional Research Sources" section - Complete list of ALL unique URLs discovered during research
+
+MANDATORY: After your standard "Sources" section, you MUST include this exact format:
+
+## Additional Research Sources
+The following sources were also consulted during research but may not be directly cited above:
+- [list every unique URL from all research specialist reports]
+- [include ALL URLs, not just cited ones]
+- [do not skip this section - it is required]
+
+Total: [count] unique sources consulted
+
+FAILURE TO INCLUDE THE "ADDITIONAL RESEARCH SOURCES" SECTION IS UNACCEPTABLE. This section provides transparency about the full research scope and is REQUIRED in every report.
+
+Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings with complete citations and source transparency."""
 
         try:
             delegation_start = time.time()
@@ -234,13 +281,19 @@ Return ONLY the final master synthesis report as your complete response. No JSON
                 map(extract_content_text, response.message["content"])
             )
 
+            # Get source information from agent manager (set during research specialist tool execution)
+            all_sources = getattr(self.agent_manager, "last_research_sources", [])
+            source_count = len(all_sources)
+
             final_report = ResearchResults(
                 main_topic=main_topic,
                 subtopics_count=0,
                 subtopic_research=[],
                 master_synthesis=master_synthesis,
-                summary=f"Comprehensive research conducted on '{main_topic}' via delegation to lead researcher.",
+                summary=f"Comprehensive research conducted on '{main_topic}' via delegation to lead researcher. Used {source_count} unique sources from research.",
                 generated_at=datetime.now().isoformat(),
+                total_unique_sources=source_count,
+                all_sources_used=all_sources,
             )
 
             processing_end = time.time()
