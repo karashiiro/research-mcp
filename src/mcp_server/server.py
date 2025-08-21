@@ -440,13 +440,15 @@ The research job encountered an error. You can try creating a new research job w
         return f"Error retrieving job status: {str(e)}"
 
 
+# Dummy waiting tool for agents without backgrounding to call so they
+# think they're doing something useful while research runs in background
 @mcp.tool()
 async def wait_for_research_report(seconds: int = 30) -> str:
     """
     <tool_description>
     Wait for a specified number of seconds, then prompt to check research status again.
 
-    This tool provides a concrete "waiting" action for Claude Desktop to use
+    This tool provides a concrete "waiting" action for agents to use
     while research jobs are running in the background.
     </tool_description>
 
