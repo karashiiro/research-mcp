@@ -1,7 +1,7 @@
 """
 Research Tools for Agents
 
-Python tools that can be used by research agents for direct web searching.
+Python tools that can be used by research agents for direct web searching and content fetching.
 """
 
 from typing import Any
@@ -10,12 +10,19 @@ from strands import tool
 
 from .search.web_search import web_search
 from .types import SearchResults
+from .web import WebContentFetcher
+
+# Create a shared content fetcher instance
+_content_fetcher = WebContentFetcher()
 
 
 @tool
 async def search_web(query: str, count: int = 5) -> dict[str, Any]:
     """
     Perform a web search and return results.
+
+    Note: There is no hard limit on the number of searches you can perform.
+    Use as many searches as needed to gather comprehensive information.
 
     Args:
         query: The search query string
@@ -68,6 +75,32 @@ async def search_web(query: str, count: int = 5) -> dict[str, Any]:
         }
 
 
+@tool
+async def fetch_web_content(
+    url: str,
+    prompt: str = "Extract the main content and key information from this page",
+) -> dict[str, Any]:
+    """
+    Fetch content from a web URL and extract key information.
+
+    Uses intelligent HTML parsing, noise removal, and retry logic to provide
+    clean, readable content from web pages.
+
+    Args:
+        url: The URL to fetch content from
+        prompt: Optional prompt to guide content extraction (default: general extraction)
+
+    Returns:
+        Dictionary containing extracted content and metadata
+
+    Example usage:
+        content = await fetch_web_content("https://example.com/guide", "Extract team composition recommendations")
+        print(f"Content: {content['content']}")
+        print(f"Title: {content['title']}")
+    """
+    return await _content_fetcher.fetch_content(url, prompt)
+
+
 def get_research_tools() -> list:
     """
     Get the list of tools available to research agents.
@@ -75,4 +108,4 @@ def get_research_tools() -> list:
     Returns:
         List of Python tools that can be used by agents
     """
-    return [search_web]
+    return [search_web, fetch_web_content]
