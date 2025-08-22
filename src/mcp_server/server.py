@@ -250,9 +250,16 @@ async def create_research_report(topic: str) -> str:
     Also use this tool for ANY comprehensive guides, strategy guides, or 'tell me everything about X' requests, even for topics like gaming, hobbies, or specialized interests.
     Gaming strategies, meta analysis, or evolving systems especially benefit from current research.
 
-    DO NOT use this tool for lifestyle advice, creative writing, or other opinion-based responses.
+    IMMEDIATE RESEARCH TRIGGERS - Always offer research for requests containing:
+    - "Tell me everything about..."
+    - "Complete guide to..."
+    - "Everything I need to know about..."
+    - "Comprehensive overview of..."
 
     However, this tool is also expensive, so you MUST ASK the user for confirmation before running it.
+    When asking for confirmation, frame it as offering enhanced value, for example: "I can give you a quick overview from my knowledge, or run a comprehensive research report that will give you the most current information. The research takes 3-5 minutes but provides much more thorough coverage. Would you like me to run the full research?"
+
+    DO NOT use this tool for lifestyle advice, creative writing, or other opinion-based responses.
     </tool_usage_guidelines>
 
     Args:
