@@ -5,6 +5,7 @@ Handles fetching and cleaning web content with smart retry logic and HTML parsin
 """
 
 import asyncio
+import logging
 import re
 from typing import Any
 
@@ -16,12 +17,31 @@ from bs4.element import NavigableString
 class WebContentFetcher:
     """Handles web content fetching with intelligent parsing and error handling."""
 
+    def __init__(self, timeout: float = 30.0, max_content_length: int = 12000):
+        self.timeout = timeout
+        self.max_content_length = max_content_length
+
+        # Set up dedicated logger for web content operations
+        self.logger = logging.getLogger("web_content")
+        if not self.logger.handlers:
+            # Create logs directory if it doesn't exist
+            from pathlib import Path
+
+            Path("logs").mkdir(parents=True, exist_ok=True)
+
+            # Create file handler for web content logs
+            handler = logging.FileHandler("logs/web_content.log", encoding="utf-8")
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel(logging.DEBUG)
+
     # Browser headers to avoid bot detection
     DEFAULT_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "identity",  # Request uncompressed content only
         "DNT": "1",
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1",
@@ -87,19 +107,12 @@ class WebContentFetcher:
         ".content-body",
     ]
 
-    def __init__(self, timeout: float = 30.0, max_content_length: int = 12000):
-        self.timeout = timeout
-        self.max_content_length = max_content_length
-
-    async def fetch_content(
-        self, url: str, prompt: str | None = None
-    ) -> dict[str, Any]:
+    async def fetch_content(self, url: str) -> dict[str, Any]:
         """
         Fetch and clean content from a web URL.
 
         Args:
             url: The URL to fetch content from
-            prompt: Optional prompt for context (not used currently but available for future)
 
         Returns:
             Dictionary with success status, content, title, and error info
@@ -118,10 +131,65 @@ class WebContentFetcher:
                 if isinstance(response, dict):  # Error response
                     return response
 
-                return self._parse_html_content(url, response.text, prompt)
+                return self._parse_html_content(url, response.text)
 
         except Exception as e:
             return self._error_response(url, f"Unexpected error: {str(e)}")
+
+    async def fetch_content_batch(self, urls: list[str]) -> list[dict[str, Any]]:
+        """
+        Fetch content from multiple URLs concurrently.
+
+        Args:
+            urls: List of URLs to fetch content from
+
+        Returns:
+            List of dictionaries with content and metadata for each URL
+        """
+        if not urls:
+            return []
+
+        self.logger.info(f"🚀 Starting batch fetch of {len(urls)} URLs")
+
+        # Create tasks for concurrent fetching
+        tasks = [self.fetch_content(url) for url in urls]
+
+        # Execute all fetches concurrently
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Convert exceptions to error responses and track stats
+        processed_results = []
+        success_count = 0
+        error_count = 0
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                error_count += 1
+                error_response = self._error_response(
+                    urls[i], f"Fetch failed: {str(result)}"
+                )
+                processed_results.append(error_response)
+                self.logger.warning(f"❌ Failed to fetch {urls[i]}: {str(result)}")
+            else:
+                # result is guaranteed to be dict[str, Any] here due to isinstance check
+                from typing import cast
+                result_dict = cast(dict[str, Any], result)
+                if result_dict.get("success", False):
+                    success_count += 1
+                    self.logger.info(
+                        f"✅ Successfully fetched {result_dict['url']} ({result_dict.get('content_length', 0)} chars)"
+                    )
+                else:
+                    error_count += 1
+                    self.logger.warning(
+                        f"❌ Failed to fetch {result_dict['url']}: {result_dict.get('error', 'Unknown error')}"
+                    )
+                processed_results.append(result_dict)
+
+        self.logger.info(
+            f"📊 Batch fetch completed: {success_count} success, {error_count} errors"
+        )
+        return processed_results
 
     def _is_valid_url(self, url: str) -> bool:
         """Check if URL format is valid."""
@@ -132,6 +200,19 @@ class WebContentFetcher:
         try:
             response = await client.get(url, headers=self.DEFAULT_HEADERS)
             response.raise_for_status()
+
+            # Debug logging for response details
+            self.logger.debug(f"🔍 Response for {url}:")
+            self.logger.debug(f"  Status: {response.status_code}")
+            self.logger.debug(
+                f"  Content-Type: {response.headers.get('content-type', 'unknown')}"
+            )
+            self.logger.debug(
+                f"  Content-Encoding: {response.headers.get('content-encoding', 'none')}"
+            )
+            self.logger.debug(f"  Content-Length: {len(response.content)} bytes")
+            self.logger.debug(f"  Text preview: {response.text[:100]}...")
+
             return response
 
         except httpx.HTTPStatusError as e:
@@ -159,9 +240,7 @@ class WebContentFetcher:
                 f"Request failed: {str(e)}. The site may be temporarily unavailable.",
             )
 
-    def _parse_html_content(
-        self, url: str, html: str, prompt: str | None
-    ) -> dict[str, Any]:
+    def _parse_html_content(self, url: str, html: str) -> dict[str, Any]:
         """Parse HTML content and extract clean text."""
         soup = BeautifulSoup(html, "html.parser")
 
@@ -190,8 +269,6 @@ class WebContentFetcher:
             "title": title,
             "content": text_content,
             "content_length": len(text_content),
-            "prompt_used": prompt
-            or "Extract the main content and key information from this page",
         }
 
     def _extract_title(self, soup: BeautifulSoup) -> str:

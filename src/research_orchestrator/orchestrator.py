@@ -5,7 +5,6 @@ Streaming architecture with real-time event processing.
 Uses async iterators and framework-native optimizations for enhanced performance.
 """
 
-import re
 import time
 import uuid
 from datetime import datetime
@@ -30,34 +29,6 @@ def extract_content_text(c: ContentBlock) -> str:
         if "reasoningText" in reasoning and "text" in reasoning["reasoningText"]:
             return reasoning["reasoningText"]["text"]
     return ""
-
-
-def extract_sources_from_report(report: str) -> list[str]:
-    """Extract all unique URLs from a research report.
-
-    Args:
-        report: The research report text containing URLs
-
-    Returns:
-        List of unique URLs found in the report
-    """
-    # Pattern to match URLs (http or https)
-    url_pattern = r"https?://[^\s\]\)>]+"
-
-    # Find all URLs in the report
-    urls = re.findall(url_pattern, report)
-
-    # Remove duplicates while preserving order
-    unique_urls = []
-    seen = set()
-    for url in urls:
-        # Clean up URLs that might have trailing punctuation
-        cleaned_url = url.rstrip(".,;:!?")
-        if cleaned_url not in seen:
-            unique_urls.append(cleaned_url)
-            seen.add(cleaned_url)
-
-    return unique_urls
 
 
 class ResearchOrchestrator:
@@ -195,17 +166,20 @@ Process everything in REAL-TIME - don't wait for completion before starting next
                 accumulated_text or self.performance_buffer["partial_synthesis"]
             )
 
+            # Filter additional sources to exclude already cited URLs
+            additional_sources = [
+                source for source in all_sources if source not in final_synthesis
+            ]
+
             # Programmatically append Additional Research Sources section
-            if all_sources:
+            if additional_sources:
                 additional_sources_section = "\n\n## Additional Research Sources\n\n"
                 additional_sources_section += "The following sources were also consulted during research but may not be directly cited above:\n\n"
 
-                for source in all_sources:
+                for source in additional_sources:
                     additional_sources_section += f"- {source}\n"
 
-                additional_sources_section += (
-                    f"\nTotal: {source_count} unique sources consulted"
-                )
+                additional_sources_section += f"\nAdditional sources: {len(additional_sources)} | Total sources consulted: {source_count}"
 
                 # Append to final synthesis
                 final_synthesis += additional_sources_section
@@ -294,17 +268,20 @@ Return ONLY the final master synthesis report as your complete response. No JSON
             all_sources = getattr(self.agent_manager, "last_research_sources", [])
             source_count = len(all_sources)
 
+            # Filter additional sources to exclude already cited URLs
+            additional_sources = [
+                source for source in all_sources if source not in master_synthesis
+            ]
+
             # Programmatically append Additional Research Sources section
-            if all_sources:
+            if additional_sources:
                 additional_sources_section = "\n\n## Additional Research Sources\n\n"
                 additional_sources_section += "The following sources were also consulted during research but may not be directly cited above:\n\n"
 
-                for source in all_sources:
+                for source in additional_sources:
                     additional_sources_section += f"- {source}\n"
 
-                additional_sources_section += (
-                    f"\nTotal: {source_count} unique sources consulted"
-                )
+                additional_sources_section += f"\nAdditional sources: {len(additional_sources)} | Total sources consulted: {source_count}"
 
                 # Append to master synthesis
                 master_synthesis += additional_sources_section

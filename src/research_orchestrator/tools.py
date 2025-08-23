@@ -10,102 +10,124 @@ from strands import tool
 
 from .search.web_search import web_search
 from .types import SearchResults
+from .utils import get_blocked_url_error, is_url_blocked
 from .web import WebContentFetcher
 
 # Create a shared content fetcher instance
 _content_fetcher = WebContentFetcher()
 
 
-@tool
-async def search_web(query: str, count: int = 5) -> dict[str, Any]:
-    """
-    Perform a web search and return results.
+def create_tracking_tools(agent_manager):
+    """Create tools with URL tracking capabilities."""
 
-    Note: There is no hard limit on the number of searches you can perform.
-    Use as many searches as needed to gather comprehensive information.
+    @tool
+    async def search_web(query: str, count: int = 5) -> dict[str, Any]:
+        """
+        Perform a web search and return results.
 
-    Args:
-        query: The search query string
-        count: Number of results to return (default: 5, max: 20)
+        Note: There is no hard limit on the number of searches you can perform.
+        Use as many searches as needed to gather comprehensive information.
 
-    Returns:
-        Dictionary containing search results with title, url, and description
+        Args:
+            query: The search query string
+            count: Number of results to return (default: 5, max: 20)
 
-    Example usage:
-        results = await search_web("My Very Interesting Topic")
-        for i, result in enumerate(results["results"], 1):
-            print(f"[{i}] {result['title']}")
-            print(f"URL: {result['url']}")
-            print(f"Description: {result['description']}")
-    """
-    try:
-        # Perform the web search
-        search_results: SearchResults = await web_search(query, count)
+        Returns:
+            Dictionary containing search results with title, url, and description
 
-        # Convert to agent-friendly format
-        formatted_results: dict[str, Any] = {
-            "query": search_results["query"],
-            "total_results": search_results["total_results"],
-            "results": [],
-        }
+        Example usage:
+            results = await search_web("My Very Interesting Topic")
+            for i, result in enumerate(results["results"], 1):
+                print(f"[{i}] {result['title']}")
+                print(f"URL: {result['url']}")
+                print(f"Description: {result['description']}")
+        """
+        try:
+            # Perform the web search
+            search_results: SearchResults = await web_search(query, count)
 
-        # Format each result for easy consumption by agents
-        results_list = []
-        for i, result in enumerate(search_results["results"], 1):
-            results_list.append(
-                {
-                    "index": i,
-                    "title": result["title"],
-                    "url": result["url"],
-                    "description": result["description"],
-                    "published": result.get("published", ""),
-                }
-            )
-        formatted_results["results"] = results_list
+            # Convert to agent-friendly format
+            formatted_results: dict[str, Any] = {
+                "query": search_results["query"],
+                "total_results": search_results["total_results"],
+                "results": [],
+            }
 
-        return formatted_results
+            # Format each result for easy consumption by agents
+            results_list = []
+            for i, result in enumerate(search_results["results"], 1):
+                url = result["url"]
+                results_list.append(
+                    {
+                        "index": i,
+                        "title": result["title"],
+                        "url": url,
+                        "description": result["description"],
+                        "published": result.get("published", ""),
+                    }
+                )
 
-    except Exception as e:
-        # Return error in a format agents can handle
-        return {
-            "query": query,
-            "total_results": 0,
-            "results": [],
-            "error": f"Search failed: {str(e)}",
-        }
+            formatted_results["results"] = results_list
 
+            return formatted_results
 
-@tool
-async def fetch_web_content(
-    url: str,
-    prompt: str = "Extract the main content and key information from this page",
-) -> dict[str, Any]:
-    """
-    Fetch content from a web URL and extract key information.
+        except Exception as e:
+            # Return error in a format agents can handle
+            return {
+                "query": query,
+                "total_results": 0,
+                "results": [],
+                "error": f"Search failed: {str(e)}",
+            }
 
-    Uses intelligent HTML parsing, noise removal, and retry logic to provide
-    clean, readable content from web pages.
+    @tool
+    async def fetch_web_content(urls: list[str]) -> list[dict[str, Any]]:
+        """
+        Fetch content from multiple web URLs concurrently.
 
-    Args:
-        url: The URL to fetch content from
-        prompt: Optional prompt to guide content extraction (default: general extraction)
+        Uses intelligent HTML parsing, noise removal, and retry logic to provide
+        clean, readable content from web pages. Fetches all URLs in parallel for efficiency.
 
-    Returns:
-        Dictionary containing extracted content and metadata
+        Args:
+            urls: List of URLs to fetch content from (limit: 5 URLs max per call)
 
-    Example usage:
-        content = await fetch_web_content("https://example.com/guide", "Extract team composition recommendations")
-        print(f"Content: {content['content']}")
-        print(f"Title: {content['title']}")
-    """
-    return await _content_fetcher.fetch_content(url, prompt)
+        Returns:
+            List of dictionaries containing extracted content and metadata for each URL
 
+        Example usage:
+            urls = ["https://example.com/guide1", "https://example.com/guide2"]
+            results = await fetch_web_content(urls)
+            for result in results:
+                if result['success']:
+                    print(f"Title: {result['title']}")
+                    print(f"Content: {result['content']}")
+                else:
+                    print(f"Failed to fetch {result['url']}: {result['error']}")
+        """
+        # Filter out blocked URLs
+        filtered_urls = []
+        blocked_results = []
 
-def get_research_tools() -> list:
-    """
-    Get the list of tools available to research agents.
+        for url in urls[:5]:  # Limit to 5 URLs max
+            if is_url_blocked(url):
+                blocked_results.append(get_blocked_url_error(url))
+            else:
+                filtered_urls.append(url)
 
-    Returns:
-        List of Python tools that can be used by agents
-    """
+        # Fetch content from non-blocked URLs
+        if filtered_urls:
+            fetch_results = await _content_fetcher.fetch_content_batch(filtered_urls)
+        else:
+            fetch_results = []
+
+        # Combine blocked and fetched results
+        all_results = blocked_results + fetch_results
+
+        # Track only successful URLs for additional sources
+        for result in all_results:
+            if result.get("success"):
+                agent_manager.tracked_urls.add(result["url"])
+
+        return all_results
+
     return [search_web, fetch_web_content]

@@ -14,7 +14,6 @@ from strands import Agent, tool
 from strands.models.model import Model
 
 from .models import ModelFactory
-from .tools import get_research_tools
 
 # System prompts for different agent types
 LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who performs three main tasks:
@@ -40,11 +39,18 @@ CITATION REQUIREMENTS:
 - Use numbered citations [1], [2], [3] throughout the synthesis
 - ALWAYS include a complete "Sources" section at the end with all URLs
 - Every factual claim must have a citation reference
-- Never remove or omit citations from the final report"""
+- Never remove or omit citations from the final report
+- CRITICAL: Only include citations that correspond to sources successfully fetched by research specialists
+- If a research specialist reports failed fetches, do NOT include those in the final citation list
+- CONSOLIDATE DUPLICATE URLs: If multiple research reports cite the same URL, assign it ONE citation number and reuse that number throughout the synthesis
+- Example: If both Report A and Report B cite "https://example.com/guide", use [1] for both references instead of [1] and [3]
+- CRITICAL: Always include the actual URLs in your Sources section - format: [1] Site Name - "Article Title" - https://actual.url.here
+- NEVER omit URLs from the Sources section - readers must be able to access the original sources
+- Ensure citation numbers match the actual number of unique, successfully accessed sources"""
 
 RESEARCH_AGENT_SYSTEM_PROMPT = """You are a research agent specializing in CONCISE, focused research reports.
 
-SEARCH EFFICIENTLY: Conduct up to 3 strategic searches to gather essential information on your assigned subtopic. Focus on finding the most comprehensive and current sources rather than exhaustive searching.
+SEARCH EFFICIENTLY: Conduct up to 2 strategic searches to gather essential information on your assigned subtopic. Focus on finding the most comprehensive and current sources rather than exhaustive searching.
 
 REPORT CONCISELY: After thorough research, create a focused report following this structure:
 
@@ -53,6 +59,23 @@ REPORT CONCISELY: After thorough research, create a focused report following thi
 - Key Findings: 3-5 essential bullet points with core information
 - Important Details: Brief explanations only where critical for understanding
 - Sources: Numbered citations [1], [2], etc. with URLs
+
+**CITATION REQUIREMENTS (CRITICAL):**
+- ONLY cite sources you successfully fetched content from using fetch_web_content
+- Number sources sequentially [1], [2], [3] based on successful fetches ONLY
+- If fetch_web_content fails, do NOT cite that source
+- Each citation [N] must correspond to a real URL you successfully accessed
+- Track your successful fetches: when you fetch content, assign it the next available number
+- Example: fetch from URL A (success) = [1], fetch from URL B (fails) = skip, fetch from URL C (success) = [2]
+- NO fake citations - only reference sources with actual content
+
+**WEB REQUEST LIMITS (CRITICAL - MUST FOLLOW):**
+- MAXIMUM 2 fetch_web_content calls per research session - NO MORE
+- Each call can fetch up to 5 URLs concurrently - plan your URL selection carefully
+- Do NOT retry failed URLs - if they fail in the batch, they are permanently skipped
+- If most URLs fail, accept limited sources and complete your report anyway
+- NEVER make additional fetch calls after reaching the 2-call limit
+- Focus on finding the BEST sources from your search results, not the most sources
 
 **Writing Style:**
 - Prioritize facts over explanations
@@ -63,12 +86,13 @@ REPORT CONCISELY: After thorough research, create a focused report following thi
 - Let the master synthesis handle comprehensive analysis
 
 **Quality Standards:**
-- Limit to maximum 3 strategic searches for efficiency
-- Ensure accurate citations for all claims
+- Limit to maximum 2 strategic searches for efficiency
+- Maximum 2 fetch_web_content calls with up to 5 URLs each (10 URLs total max)
+- Ensure accurate citations for all claims - NO FAKE CITATIONS
 - Include current, relevant sources
 - Preserve essential technical details
 
-Remember: Search strategically (max 3 searches), report efficiently. Quality over quantity - find the best sources and synthesize them concisely for the master researcher."""
+Remember: Search strategically (max 2 searches), fetch selectively (max 2 batches), report efficiently. Quality over quantity - find the best sources and synthesize them concisely for the master researcher."""
 
 
 class AgentManager:
@@ -98,6 +122,9 @@ class AgentManager:
         self.subagents: list[Agent] = []
         self.subagent_models: list[Model] = []  # Store created subagent models
 
+        # Track URLs used during research for additional sources
+        self.tracked_urls: set[str] = set()
+
         self._create_agents()
 
     def _create_agents(self):
@@ -105,8 +132,10 @@ class AgentManager:
         # Create subagent models from pool first
         self._create_subagent_models()
 
-        # Create pool of research subagents with web search tools
-        research_tools = get_research_tools()
+        # Create research tools with URL tracking
+        from .tools import create_tracking_tools
+
+        research_tools = create_tracking_tools(self)
         self.subagents = []
         for i in range(self.num_subagents):
             # Use different models for each subagent
@@ -324,25 +353,11 @@ async def _conduct_concurrent_research_with_agents(
         f"🎯 [{tool_id}] Concurrent research completed in {concurrent_time:.2f} seconds"
     )
 
-    # Extract all unique sources from research reports
-    from .orchestrator import extract_sources_from_report
-
-    all_sources = []
-    for report in processed_results:
-        if isinstance(report, str):
-            sources = extract_sources_from_report(report)
-            all_sources.extend(sources)
-
-    # Remove duplicates while preserving order
-    unique_sources = []
-    seen_sources = set()
-    for source in all_sources:
-        if source not in seen_sources:
-            unique_sources.append(source)
-            seen_sources.add(source)
+    # Use directly tracked URLs instead of parsing from reports
+    unique_sources = list(agent_manager.tracked_urls)
 
     print(
-        f"📊 [{tool_id}] Found {len(unique_sources)} unique sources across all research"
+        f"📊 [{tool_id}] Tracked {len(unique_sources)} unique sources during research"
     )
 
     # Store source information in agent manager for later retrieval
