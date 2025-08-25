@@ -29,21 +29,10 @@ LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who orchestrates co
 - Use ONLY information from subagent reports and tool results
 - Be direct, factual, and concise - focus on synthesis, not interpretation
 
-## CITATION CONSOLIDATION (CRITICAL)
-- **Preserve ALL citations** from subagent reports that successfully fetched content
-- **Consolidate duplicates**: If multiple reports cite same URL, assign ONE number [1] and reuse it
-- **Always include URLs**: Every citation MUST have format: [1] Site Name - "Title" - https://full.url.here
-- **Sources section**: Complete list at end with all URLs from successful fetches
-- **Never include**: Citations from failed/empty fetches reported by subagents
-
-## CITATION FORMAT EXAMPLES
-**CORRECT Sources Section:**
-[1] Example Site - "Complete Guide" - https://example.com/guide
-[2] Forum Site - "Discussion Thread" - https://forum.example.org/topic/123
-
-**WRONG Sources Section:**
-[1] Example guide (NO - MISSING URL)
-[2] Some article (NO - MISSING URL)
+## CITATION REQUIREMENTS
+- Include citations for all factual claims using format [1], [2], [3]
+- Always include complete URLs in sources section: [1] Site Name - "Title" - https://full.url.here
+- Only cite sources from successful subagent fetches
 
 ## OUTPUT REQUIREMENTS
 - No internal reasoning or thinking commentary

@@ -173,6 +173,7 @@ class WebContentFetcher:
             else:
                 # result is guaranteed to be dict[str, Any] here due to isinstance check
                 from typing import cast
+
                 result_dict = cast(dict[str, Any], result)
                 if result_dict.get("success", False):
                     success_count += 1

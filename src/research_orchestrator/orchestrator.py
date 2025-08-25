@@ -5,10 +5,11 @@ Streaming architecture with real-time event processing.
 Uses async iterators and framework-native optimizations for enhanced performance.
 """
 
+import re
 import time
 import uuid
 from datetime import datetime
-from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 from strands.types.content import ContentBlock
 
@@ -31,6 +32,112 @@ def extract_content_text(c: ContentBlock) -> str:
     return ""
 
 
+def normalize_url(url: str) -> str:
+    """
+    Normalize URLs for consistent comparison using proper URL parsing.
+    Handles trailing slashes, case differences, query params, and fragments.
+    """
+    try:
+        parsed = urlparse(url.strip())
+
+        # Normalize components
+        scheme = parsed.scheme.lower()
+        netloc = parsed.netloc.lower()
+        path = parsed.path.rstrip("/")  # Remove trailing slash
+
+        # Ignore query parameters and fragments for deduplication
+        # (they usually don't affect the core content)
+
+        # Reconstruct normalized URL
+        normalized = urlunparse((scheme, netloc, path, "", "", ""))
+        return normalized
+    except Exception:
+        # Fallback to original URL if parsing fails
+        return url.strip().lower()
+
+
+def deduplicate_citation_urls(master_synthesis: str) -> str:
+    """
+    Programmatically deduplicate URLs in the Sources section of master synthesis.
+
+    This fixes the issue where the lead researcher creates multiple citation numbers
+    for the same URL (e.g., [1], [5], [9] all pointing to the same URL).
+
+    Args:
+        master_synthesis: The master synthesis text with potentially duplicate URLs
+
+    Returns:
+        Fixed synthesis with deduplicated URLs and updated citation numbers
+    """
+    # Extract the Sources section
+    sources_pattern = r"## Sources\s*\n\n(.*?)(?=\n\n##|\n\n\*\*|\Z)"
+    sources_match = re.search(sources_pattern, master_synthesis, re.DOTALL)
+
+    if not sources_match:
+        return master_synthesis
+
+    sources_section = sources_match.group(1)
+
+    # Parse citation entries: [1] Site Name – "Title" – https://url.com (with em dashes)
+    citation_pattern = r'\[(\d+)\]\s+([^–]+)\s+–\s+"([^"]+)"\s+–\s+(https?://[^\s\n]+)'
+    citations = re.findall(citation_pattern, sources_section)
+
+    if not citations:
+        return master_synthesis
+
+    # Create URL to citation mapping (deduplicate by normalized URL)
+    url_to_citation = {}
+    citation_counter = 1
+
+    for old_num, site_name, title, url in citations:
+        normalized_url = normalize_url(url)
+        if normalized_url not in url_to_citation:
+            url_to_citation[normalized_url] = {
+                "new_num": citation_counter,
+                "site_name": site_name.strip(),
+                "title": title.strip(),
+                "original_url": url,  # Keep original URL for display
+                "old_nums": [old_num],
+            }
+            citation_counter += 1
+        else:
+            # Add this old citation number as an alias
+            url_to_citation[normalized_url]["old_nums"].append(old_num)
+
+    # Create mapping from old citation numbers to new ones
+    old_to_new_mapping = {}
+    for url_info in url_to_citation.values():
+        for old_num in url_info["old_nums"]:
+            old_to_new_mapping[old_num] = str(url_info["new_num"])
+
+    # Replace citation numbers in the main text
+    updated_synthesis = master_synthesis
+    for old_num, new_num in old_to_new_mapping.items():
+        # Replace [old_num] with [new_num] throughout the text
+        updated_synthesis = re.sub(
+            rf"\[{re.escape(old_num)}\]", f"[{new_num}]", updated_synthesis
+        )
+
+    # Rebuild the Sources section with deduplicated entries
+    new_sources_lines = []
+    for _, info in url_to_citation.items():
+        new_sources_lines.append(
+            f'[{info["new_num"]}] {info["site_name"]} – "{info["title"]}" – {info["original_url"]}'
+        )
+
+    new_sources_section = "\n".join(new_sources_lines)
+
+    # Replace the old Sources section with the new one
+    updated_synthesis = re.sub(
+        sources_pattern,
+        f"## Sources\n\n{new_sources_section}",
+        updated_synthesis,
+        flags=re.DOTALL,
+    )
+
+    return updated_synthesis
+
+
 class ResearchOrchestrator:
     """
     Streaming research orchestrator with real-time processing.
@@ -47,172 +154,8 @@ class ResearchOrchestrator:
         # Set up logging
         self.research_logger = setup_logging()
 
-        # Streaming performance tracking
-        self.performance_buffer: dict[str, Any] = {}
-
         # Progress callback for real-time updates
         self.progress_callback = progress_callback
-
-    async def streaming_research_workflow(self, main_topic: str) -> ResearchResults:
-        """
-        Streaming workflow with real-time processing.
-        Uses async iterators for enhanced performance.
-        """
-        workflow_id = str(uuid.uuid4())
-        workflow_start = time.time()
-        self.research_logger.info(
-            f"🚀 [{workflow_id}] Starting STREAMING research workflow for: {main_topic}"
-        )
-
-        # Reset performance tracking state
-        self.performance_buffer = {"partial_synthesis": ""}
-
-        lead_researcher = self.agent_manager.get_lead_researcher()
-
-        # Use simplified approach to avoid conversation state conflicts
-        # Focus on streaming without complex coordination
-
-        prompt = f"""As lead researcher, conduct a STREAMING research workflow for the topic: "{main_topic}"
-
-STREAMING WORKFLOW:
-1. Generate subtopics one by one (don't wait for all!)
-2. Use research_specialist tool to get concurrent research reports
-3. Start creating synthesis sections as research data becomes available
-4. Build comprehensive master report progressively
-
-Process everything in REAL-TIME - don't wait for completion before starting next steps!"""
-
-        try:
-            # Start streaming workflow!!
-            streaming_start = time.time()
-            self.research_logger.info(
-                f"⚡ [{workflow_id}] Starting streaming delegation..."
-            )
-
-            # Use async iterator for real-time processing
-            accumulated_text = ""
-            tool_usage_count = 0
-            performance_metrics: dict[str, Any] = {
-                "tools": {},
-                "tokens": {"input": 0, "output": 0},
-                "timing": {},
-            }
-
-            async for event in lead_researcher.stream_async(prompt):
-                self.research_logger.debug(f"📡 [{workflow_id}] Stream event: {event}")
-
-                # Process text generation events
-                if "data" in event:
-                    text_chunk = event["data"]
-                    accumulated_text += text_chunk
-                    self.performance_buffer["partial_synthesis"] += text_chunk
-                    # Track output tokens for performance metrics
-                    performance_metrics["tokens"]["output"] += len(text_chunk.split())
-
-                # Process tool usage events with performance tracking
-                elif "current_tool_use" in event:
-                    tool_info = event["current_tool_use"]
-                    tool_name = tool_info.get("name", "unknown")
-                    tool_usage_count += 1
-
-                    # Track tool performance metrics
-                    if tool_name not in performance_metrics["tools"]:
-                        performance_metrics["tools"][tool_name] = {
-                            "count": 0,
-                            "start_time": time.time(),
-                        }
-                    performance_metrics["tools"][tool_name]["count"] += 1
-
-                    self.research_logger.info(
-                        f"🔧 [{workflow_id}] Tool execution #{tool_usage_count}: {tool_name} (usage #{performance_metrics['tools'][tool_name]['count']})"
-                    )
-
-                # Process lifecycle events for coordination
-                elif "lifecycle" in event:
-                    lifecycle_info = event["lifecycle"]
-                    self.research_logger.info(
-                        f"📈 [{workflow_id}] Lifecycle event: {lifecycle_info}"
-                    )
-
-            streaming_end = time.time()
-            streaming_time = streaming_end - streaming_start
-            performance_metrics["timing"]["streaming_duration"] = streaming_time
-
-            # Log performance metrics
-            self.research_logger.info(
-                f"⚡ [{workflow_id}] Streaming completed in {streaming_time:.2f} seconds"
-            )
-            self.research_logger.info(
-                f"📊 [{workflow_id}] Performance metrics: {tool_usage_count} tools used, "
-                f"{performance_metrics['tokens']['output']} output tokens generated"
-            )
-
-            # Log individual tool performance
-            for tool_name, tool_stats in performance_metrics["tools"].items():
-                self.research_logger.info(
-                    f"🔧 [{workflow_id}] Tool '{tool_name}': {tool_stats['count']} executions"
-                )
-
-            # Create performance summary for the report
-            perf_summary = f"Tools used: {tool_usage_count} | Output tokens: {performance_metrics['tokens']['output']} | "
-            perf_summary += f"Streaming duration: {streaming_time:.2f}s"
-
-            # Get source information from agent manager (set during research specialist tool execution)
-            all_sources = getattr(self.agent_manager, "last_research_sources", [])
-            source_count = len(all_sources)
-
-            # Get the master synthesis text
-            final_synthesis = (
-                accumulated_text or self.performance_buffer["partial_synthesis"]
-            )
-
-            # Filter additional sources to exclude already cited URLs
-            additional_sources = [
-                source for source in all_sources if source not in final_synthesis
-            ]
-
-            # Programmatically append Additional Research Sources section
-            if additional_sources:
-                additional_sources_section = "\n\n## Additional Research Sources\n\n"
-                additional_sources_section += "The following sources were also consulted during research but may not be directly cited above:\n\n"
-
-                for source in additional_sources:
-                    additional_sources_section += f"- {source}\n"
-
-                additional_sources_section += f"\nAdditional sources: {len(additional_sources)} | Total sources consulted: {source_count}"
-
-                # Append to final synthesis
-                final_synthesis += additional_sources_section
-
-            final_report = ResearchResults(
-                main_topic=main_topic,
-                subtopics_count=0,  # Handled via streaming
-                subtopic_research=[],  # Handled via streaming
-                master_synthesis=final_synthesis,
-                summary=f"Streaming research conducted on '{main_topic}' with real-time processing | {perf_summary} | {source_count} sources consulted",
-                generated_at=datetime.now().isoformat(),
-                total_unique_sources=source_count,
-                all_sources_used=all_sources,
-            )
-
-            workflow_end = time.time()
-            total_time = workflow_end - workflow_start
-
-            self.research_logger.info(
-                f"🎯 [{workflow_id}] STREAMING workflow completed for '{main_topic}' in {total_time:.2f} seconds total"
-            )
-
-            return final_report
-
-        except Exception as e:
-            workflow_end = time.time()
-            total_time = workflow_end - workflow_start
-            self.research_logger.error(
-                f"❌ [{workflow_id}] Streaming workflow failed for '{main_topic}' after {total_time:.2f} seconds: {e}"
-            )
-            raise RuntimeError(
-                f"Streaming research workflow failed for topic '{main_topic}': {str(e)}"
-            ) from e
 
     async def complete_research_workflow(self, main_topic: str) -> ResearchResults:
         """
@@ -264,13 +207,32 @@ Return ONLY the final master synthesis report as your complete response. No JSON
                 map(extract_content_text, response.message["content"])
             )
 
+            # Apply programmatic URL deduplication to fix citation issues
+            master_synthesis = deduplicate_citation_urls(master_synthesis)
+            self.research_logger.info(
+                f"🔧 [{workflow_id}] Applied URL deduplication to master synthesis"
+            )
+
             # Get source information from agent manager (set during research specialist tool execution)
             all_sources = getattr(self.agent_manager, "last_research_sources", [])
             source_count = len(all_sources)
 
-            # Filter additional sources to exclude already cited URLs
+            # Filter additional sources to exclude already cited URLs (using normalized comparison)
+            # Extract all URLs from the Sources section for comparison
+            cited_urls = set()
+            sources_pattern = r"## Sources\s*\n\n(.*?)(?=\n\n##|\n\n\*\*|\Z)"
+            sources_match = re.search(sources_pattern, master_synthesis, re.DOTALL)
+            if sources_match:
+                citation_pattern = r"https?://[^\s\n]+"
+                cited_urls = {
+                    normalize_url(url)
+                    for url in re.findall(citation_pattern, sources_match.group(1))
+                }
+
             additional_sources = [
-                source for source in all_sources if source not in master_synthesis
+                source
+                for source in all_sources
+                if normalize_url(source) not in cited_urls
             ]
 
             # Programmatically append Additional Research Sources section
