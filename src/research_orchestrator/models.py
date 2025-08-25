@@ -122,6 +122,7 @@ class ModelFactory:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "streaming": False,  # Required for some models to avoid tool use issues
+            "cache_prompt": "default" if "claude" in final_model_id else None,
         }
         config.update(kwargs)
         return BedrockModel(**config)  # type: ignore[arg-type]
