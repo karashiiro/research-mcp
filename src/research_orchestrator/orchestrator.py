@@ -43,7 +43,7 @@ def normalize_url(url: str) -> str:
         # Normalize components
         scheme = parsed.scheme.lower()
         netloc = parsed.netloc.lower()
-        path = parsed.path.rstrip("/")  # Remove trailing slash
+        path = parsed.path.rstrip("/").lower()  # Remove trailing slash and lowercase
 
         # Ignore query parameters and fragments for deduplication
         # (they usually don't affect the core content)
