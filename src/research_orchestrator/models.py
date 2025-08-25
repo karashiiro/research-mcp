@@ -6,6 +6,7 @@ Provides model creation and abstractions for different providers.
 
 import os
 
+from botocore.config import Config as BotocoreConfig
 from strands.models.bedrock import BedrockModel
 from strands.models.model import Model
 from strands.models.ollama import OllamaModel
@@ -104,7 +105,7 @@ class ModelFactory:
         model_id: str | None = None,
         **kwargs,
     ) -> BedrockModel:
-        """Create a Bedrock model instance with model-specific token limits."""
+        """Create a Bedrock model instance with model-specific token limits and retry config."""
         final_model_id = model_id or os.getenv(
             "BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"
         )
@@ -117,14 +118,29 @@ class ModelFactory:
             else:
                 max_tokens = 10000  # Default for other Claude models
 
+        # Create boto3 client config with exponential backoff for throttling mitigation
+        # Based on research findings: adaptive retry mode with up to 10 attempts
+        # aligns retries to 60-second quota windows and includes random jitter
+        boto_config = BotocoreConfig(
+            retries={
+                "max_attempts": 10,  # Increase from default 4 to handle throttling
+                "mode": "adaptive",  # Use adaptive retry with exponential backoff + jitter
+            },
+            connect_timeout=30,  # Increase connection timeout for reliability
+            read_timeout=120,  # Increase read timeout for long generations
+        )
+
         config = {
             "model_id": final_model_id,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "streaming": False,  # Required for some models to avoid tool use issues
+            "streaming": True
+            if final_model_id and "claude" in final_model_id
+            else False,  # Required for some models to avoid tool use issues
             "cache_prompt": "default"
             if final_model_id and "claude" in final_model_id
             else None,
+            "boto_client_config": boto_config,  # Add retry configuration
         }
         config.update(kwargs)
         return BedrockModel(**config)  # type: ignore[arg-type]

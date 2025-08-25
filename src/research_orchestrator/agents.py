@@ -40,29 +40,77 @@ LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who orchestrates co
 - Maintain consistent formatting throughout
 - Complete "Sources" section at end with full URLs"""
 
+SYNTHESIS_AGENT_SYSTEM_PROMPT = """You are a synthesis specialist who consolidates multiple research reports into a single, concise intermediate report for the lead researcher.
+
+## PRIMARY TASK
+Take multiple detailed subagent research reports and synthesize them into one streamlined intermediate report that preserves key information while reducing token overhead.
+
+## SYNTHESIS PRINCIPLES
+1. **Consolidate overlapping information** - Merge similar findings from different reports
+2. **Preserve essential details** - Keep all important facts, statistics, and technical specifications
+3. **Maintain all citations** - Preserve every source citation from all input reports
+4. **Streamline format** - Use concise bullet points and structured lists
+5. **Remove redundancy** - Eliminate duplicate information across reports
+
+## OUTPUT FORMAT
+**Research Area Overview:** Brief description of the research scope
+**Consolidated Key Findings:** Essential insights from all reports (6-10 bullet points max)
+**Technical Details:** Important specifications, methods, and implementation details
+**Consolidated Sources:** All unique citations from input reports, renumbered sequentially
+
+## OPTIMIZATION GUIDELINES
+- Target 50% reduction in length while preserving 90% of information value
+- Focus on actionable insights and concrete facts
+- Eliminate verbose explanations and redundant examples
+- Maintain technical accuracy and citation completeness"""
+
+REVIEWER_AGENT_SYSTEM_PROMPT = """You are a citation review specialist focused on ensuring comprehensive source attribution in research reports.
+
+## PRIMARY TASK
+Review research reports and identify statements that need citations but currently lack them.
+
+## REVIEW CRITERIA
+1. **Factual claims** - Statistics, percentages, performance metrics, technical specifications
+2. **Technical statements** - Architectural details, algorithm descriptions, model capabilities
+3. **Research findings** - Experimental results, comparative analyses, benchmark scores
+4. **Historical information** - Release dates, development timelines, version details
+5. **Industry trends** - Market analysis, adoption patterns, future predictions
+
+## OUTPUT FORMAT
+Provide a structured review with:
+- **MISSING CITATIONS IDENTIFIED:** List specific statements that need citations
+- **CITATION PLACEMENT SUGGESTIONS:** Where to add [X] references in the text
+- **OVERALL ASSESSMENT:** Brief summary of citation completeness
+
+## REVIEW PRINCIPLES
+- Be thorough but practical - focus on claims that genuinely need source backing
+- Don't require citations for widely accepted basic concepts or definitions
+- Prioritize recent statistics, performance comparisons, and technical specifications
+- Flag vague statements that could be made more specific with proper sources"""
+
 RESEARCH_AGENT_SYSTEM_PROMPT = """You are a research agent specializing in CONCISE, focused research reports.
 
 ## WORKFLOW LIMITS (MANDATORY)
-1. MAXIMUM 2 search_web calls total
-2. MAXIMUM 2 fetch_web_content calls total (5 URLs each = 10 URLs max)
+1. MAXIMUM 3 search_web calls total
+2. MAXIMUM 3 fetch_web_content calls total (5 URLs each = 15 URLs max)
 3. After hitting these limits, IMMEDIATELY write your report - NO EXCEPTIONS
 
 ## RESEARCH PROCESS
-1. **Search Phase**: Conduct exactly 2 strategic searches to find the best sources
-2. **Fetch Phase**: Make 2 fetch_web_content calls to gather content from selected URLs
+1. **Search Phase**: Conduct up to 3 strategic searches to find comprehensive sources
+2. **Fetch Phase**: Make up to 3 fetch_web_content calls to gather content from selected URLs
 3. **Report Phase**: Write your report using whatever content you successfully obtained
 
 ## CRITICAL STOP CONDITIONS
-- After 2nd search: STOP searching, move to fetching
-- After 2nd fetch: STOP fetching, write report immediately
+- After 3rd search: STOP searching, move to fetching
+- After 3rd fetch: STOP fetching, write report immediately
 - If sources fail/return bad content: Accept what you have and complete the report
 - NEVER get stuck looking for "perfect sources" - complete with available content
 - Better to finish with limited sources than to loop forever
 
 ## REPORT FORMAT
 **Title:** Clear subtopic title
-**Key Findings:** 3-5 essential bullet points with core information
-**Important Details:** Brief explanations only where critical
+**Key Findings:** 4-6 essential bullet points with comprehensive information
+**Important Details:** Detailed explanations with supporting evidence
 **Sources:** Numbered citations with FULL URLs - [1] Site Name - "Title" - https://full.url.here
 
 ## CITATION RULES
@@ -73,11 +121,13 @@ RESEARCH_AGENT_SYSTEM_PROMPT = """You are a research agent specializing in CONCI
 - If fetch fails, skip that source - do NOT cite failed fetches
 
 ## WRITING STYLE
-- Prioritize facts over explanations
-- Use bullet points and structured lists
-- Focus on actionable insights
+- Provide comprehensive coverage with detailed facts and analysis
+- Use bullet points and structured lists for clarity
+- Include supporting evidence and context for claims
+- Target thorough, in-depth coverage of the subtopic
+- Focus on actionable insights with proper justification
 
-Remember: 2 searches → 2 fetches → write report. No exceptions, no loops, always finish."""
+Remember: Up to 3 searches → up to 3 fetches → write comprehensive report. No exceptions, no loops, always finish."""
 
 
 class AgentManager:
@@ -106,6 +156,8 @@ class AgentManager:
         self.lead_researcher = None
         self.subagents: list[Agent] = []
         self.subagent_models: list[Model] = []  # Store created subagent models
+        self.reviewer_agent = None  # Citation reviewer agent
+        self.synthesis_agent = None  # Report synthesis agent
 
         # Track URLs used during research for additional sources
         self.tracked_urls: set[str] = set()
@@ -133,8 +185,22 @@ class AgentManager:
                 )
             )
 
-        # NOW create research agent tools using THIS AgentManager instance
-        research_agent_tools = [create_research_specialist_tool(self)]
+        # Create citation reviewer agent (uses main model for quality)
+        self.reviewer_agent = Agent(
+            model=self.model,
+            system_prompt=REVIEWER_AGENT_SYSTEM_PROMPT,
+        )
+
+        # Create synthesis agent (uses main model for quality consolidation)
+        self.synthesis_agent = Agent(
+            model=self.model,
+            system_prompt=SYNTHESIS_AGENT_SYSTEM_PROMPT,
+        )
+
+        research_agent_tools = [
+            create_research_specialist_tool(self),
+            create_citation_reviewer_tool(self),
+        ]
 
         # Create the lead researcher agent with research specialist tools (uses main model)
         self.lead_researcher = Agent(
@@ -213,7 +279,7 @@ def create_research_specialist_tool(agent_manager):
     """
 
     @tool
-    def streaming_research_specialist(queries: list[str]) -> list[str]:
+    def streaming_research_specialist(queries: list[str]) -> str:
         """
         Streaming research agent with real-time processing.
         Uses async iterators for enhanced speed and efficiency.
@@ -222,7 +288,7 @@ def create_research_specialist_tool(agent_manager):
             queries: List of research topics/questions to investigate concurrently
 
         Returns:
-            List of comprehensive research reports with streaming optimization
+            Synthesized research report consolidating all findings with optimized token usage
         """
         tool_id = str(uuid.uuid4())
         tool_start = time.time()
@@ -244,9 +310,75 @@ def create_research_specialist_tool(agent_manager):
             f"✅ [{tool_id}] Streaming research_specialist completed in {tool_time:.2f} seconds"
         )
 
-        return results
+        # Return the synthesized report (should be a single consolidated report)
+        return results[0] if results else "No research results obtained"
 
     return streaming_research_specialist
+
+
+def create_citation_reviewer_tool(agent_manager):
+    """
+    Factory function that creates a citation review tool for the lead researcher.
+    Reviews research reports and identifies missing citations.
+
+    Args:
+        agent_manager: The AgentManager instance containing the reviewer agent
+
+    Returns:
+        A citation reviewer tool function
+    """
+
+    @tool
+    def citation_reviewer(research_report: str) -> str:
+        """
+        Review a research report and identify statements that need citations.
+
+        Args:
+            research_report: The complete research report text to review
+
+        Returns:
+            Detailed review highlighting missing citations and suggestions
+        """
+        tool_id = str(uuid.uuid4())
+        tool_start = time.time()
+        print(f"📝 [{tool_id}] Citation reviewer started")
+
+        # Use the reviewer agent to analyze the report
+        prompt = f"""Please review this research report and identify any statements that need citations but currently lack them:
+
+---RESEARCH REPORT---
+{research_report}
+---END REPORT---
+
+Focus on factual claims, technical specifications, performance metrics, and research findings that should be backed by sources. Provide specific suggestions for where citations should be added."""
+
+        try:
+            response = agent_manager.reviewer_agent(prompt)
+
+            # Extract text content from response
+            from .orchestrator import extract_content_text
+
+            review_result = "".join(
+                map(extract_content_text, response.message["content"])
+            )
+
+            tool_end = time.time()
+            tool_time = tool_end - tool_start
+            print(
+                f"✅ [{tool_id}] Citation reviewer completed in {tool_time:.2f} seconds"
+            )
+
+            return review_result
+
+        except Exception as e:
+            tool_end = time.time()
+            tool_time = tool_end - tool_start
+            print(
+                f"❌ [{tool_id}] Citation reviewer failed in {tool_time:.2f} seconds: {e}"
+            )
+            return f"Citation review failed: {str(e)}"
+
+    return citation_reviewer
 
 
 async def _conduct_concurrent_research_with_agents(
@@ -354,6 +486,50 @@ async def _conduct_concurrent_research_with_agents(
         agent_manager.progress_callback(
             "research_completed", total_time=concurrent_time
         )
+
+    # SYNTHESIS STEP: Consolidate all subagent reports into one intermediate report
+    if len(processed_results) > 1:
+        synthesis_start = time.time()
+        print(
+            f"🔄 [{tool_id}] Synthesizing {len(processed_results)} subagent reports..."
+        )
+
+        # Prepare synthesis prompt with all subagent reports
+        reports_text = ""
+        for i, report in enumerate(processed_results, 1):
+            reports_text += f"\n--- SUBAGENT REPORT {i} ---\n{report}\n"
+
+        synthesis_prompt = f"""Consolidate these {len(processed_results)} research reports into one streamlined intermediate report:
+
+{reports_text}
+
+Create a synthesis that preserves all key information while reducing redundancy and token overhead. Maintain all citations and technical details."""
+
+        try:
+            synthesis_response = agent_manager.synthesis_agent(synthesis_prompt)
+
+            # Extract synthesis result
+            from .orchestrator import extract_content_text
+
+            synthesized_report = "".join(
+                map(extract_content_text, synthesis_response.message["content"])
+            )
+
+            synthesis_end = time.time()
+            synthesis_time = synthesis_end - synthesis_start
+            print(f"🎯 [{tool_id}] Synthesis completed in {synthesis_time:.2f} seconds")
+
+            # Return the single synthesized report instead of multiple reports
+            return [synthesized_report]
+
+        except Exception as e:
+            synthesis_end = time.time()
+            synthesis_time = synthesis_end - synthesis_start
+            print(
+                f"❌ [{tool_id}] Synthesis failed in {synthesis_time:.2f} seconds: {e}"
+            )
+            print(f"⚠️ [{tool_id}] Falling back to original reports")
+            # Fall back to original reports if synthesis fails
 
     return processed_results
 

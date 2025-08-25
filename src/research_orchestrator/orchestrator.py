@@ -174,15 +174,28 @@ class ResearchOrchestrator:
 COMPLETE WORKFLOW:
 1. Generate 2-5 focused subtopics for comprehensive coverage
 2. Use research_specialist tool with ALL subtopics to get concurrent research reports
-3. Create a comprehensive master synthesis report combining all findings
-4. Include proper citations, structure, and formatting
+3. Review initial findings to identify areas for deeper investigation
+4. Consider using research_specialist tool again with 1-2 follow-up topics to explore interesting areas in greater depth
+5. Create a comprehensive master synthesis report combining ALL findings (initial + follow-up)
+6. Include proper citations, structure, and formatting
+
+FOLLOW-UP RESEARCH CONSIDERATIONS:
+- After reviewing initial research, consider whether additional depth would enhance the final report
+- Good candidates for follow-up: advanced techniques, recent developments, practical implementation, emerging trends, detailed mechanisms
+- Follow-up topics should build upon interesting findings from the initial research
+- Use your judgment about whether the topic would benefit from additional investigation
 
 CRITICAL: Your final synthesis report MUST include proper citations:
 
 - Use numbered citations [1], [2], [3] throughout the text for every factual claim
 - Include a complete "Sources" section at the end listing all URLs used in numbered citations
-- Preserve ALL citations from the individual research reports - never omit any sources
+- Preserve ALL citations from ALL research rounds (initial + follow-up) - never omit any sources
 - Ensure every [1], [2], [3] reference in the text corresponds to a URL in the Sources section
+
+CITATION REVIEW WORKFLOW:
+1. After completing your master synthesis report, use the citation_reviewer tool to check for missing citations
+2. The reviewer will identify statements that need citations but currently lack them
+3. If significant issues are found, consider making improvements to the report before finalizing
 
 Return ONLY the final master synthesis report as your complete response. No JSON, no metadata, just the comprehensive research report that synthesizes all your findings with complete citations and source transparency."""
 
