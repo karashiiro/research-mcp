@@ -1,10 +1,10 @@
 import asyncio
 import itertools
-import os
 
 import httpx
 from httpcore._async.connection import exponential_backoff
 
+from ...settings import get_settings
 from ...types import SearchResultItem, SearchResults
 from .cache import SearchCache
 
@@ -30,9 +30,8 @@ async def web_search(
     if cached_results is not None:
         return cached_results
 
-    api_key = os.getenv("BRAVE_API_KEY")
-    if not api_key:
-        raise ValueError("BRAVE_API_KEY environment variable is required")
+    settings = get_settings()
+    api_key = settings.brave_api_key
 
     # Brave Search API endpoint
     url = "https://api.search.brave.com/res/v1/web/search"

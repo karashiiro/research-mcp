@@ -6,7 +6,6 @@ Implements agents-as-tools pattern for modular research orchestration.
 """
 
 import asyncio
-import os
 import time
 import uuid
 
@@ -14,6 +13,7 @@ from strands import Agent, tool
 from strands.models.model import Model
 
 from .models import ModelFactory
+from .settings import get_settings
 from .tools import create_search_tools
 from .web.content_fetcher import WebContentFetcher
 from .web.search.cache import SearchCache
@@ -257,17 +257,10 @@ def create_agent_manager(
     web_fetcher: WebContentFetcher,
 ) -> AgentManager:
     """Convenience function to create an agent manager with hybrid model support."""
-    # Read subagent model pool from environment
-    subagent_models_env = os.getenv("BEDROCK_SUBAGENT_MODELS")
-    subagent_model_pool = []
+    settings = get_settings()
+    subagent_model_pool = settings.bedrock_subagent_models_list
 
-    if subagent_models_env:
-        # Parse comma-separated model IDs
-        subagent_model_pool = [
-            model_id.strip()
-            for model_id in subagent_models_env.split(",")
-            if model_id.strip()
-        ]
+    if subagent_model_pool:
         print(f"🎭 Using subagent model pool: {subagent_model_pool}")
     else:
         print("🎭 No subagent model pool specified, using main model for all agents")

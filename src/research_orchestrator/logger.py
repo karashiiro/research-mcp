@@ -1,7 +1,7 @@
 """
-Configuration and Logging Module
+Logger Configuration Module
 
-Handles environment configuration, logging setup, and model initialization.
+Handles logging setup for research operations.
 """
 
 import logging

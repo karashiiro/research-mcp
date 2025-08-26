@@ -4,12 +4,12 @@ Model Provider Abstractions and Factory
 Provides model creation and abstractions for different providers.
 """
 
-import os
-
 from botocore.config import Config as BotocoreConfig
 from strands.models.bedrock import BedrockModel
 from strands.models.model import Model
 from strands.models.ollama import OllamaModel
+
+from .settings import get_settings
 
 
 class ModelFactory:
@@ -34,18 +34,20 @@ class ModelFactory:
         Returns:
             Configured model instance
         """
-        # Use environment defaults if not provided
-        model_type = model_type or os.getenv("MODEL_TYPE", "bedrock")
+        settings = get_settings()
+
+        # Use settings defaults if not provided
+        model_type = model_type or settings.model_type
         temperature = (
-            temperature
-            if temperature is not None
-            else float(os.getenv("MODEL_TEMPERATURE", 0.0))
+            temperature if temperature is not None else settings.model_temperature
         )
 
         if model_type == "ollama":
-            return ModelFactory._create_ollama_model(temperature, **kwargs)
+            return ModelFactory._create_ollama_model(settings, temperature, **kwargs)
         else:
-            return ModelFactory._create_bedrock_model(temperature, max_tokens, **kwargs)
+            return ModelFactory._create_bedrock_model(
+                settings, temperature, max_tokens, **kwargs
+            )
 
     @staticmethod
     def create_model_with_id(
@@ -68,31 +70,31 @@ class ModelFactory:
         Returns:
             Configured model instance
         """
-        # Use environment defaults if not provided
-        model_type = model_type or os.getenv("MODEL_TYPE", "bedrock")
+        settings = get_settings()
+
+        # Use settings defaults if not provided
+        model_type = model_type or settings.model_type
         temperature = (
-            temperature
-            if temperature is not None
-            else float(os.getenv("MODEL_TEMPERATURE", 0.0))
+            temperature if temperature is not None else settings.model_temperature
         )
 
         if model_type == "ollama":
             # For Ollama, pass model_id as model parameter
             return ModelFactory._create_ollama_model(
-                temperature, model=model_id, **kwargs
+                settings, temperature, model=model_id, **kwargs
             )
         else:
             # For Bedrock, pass model_id directly
             return ModelFactory._create_bedrock_model(
-                temperature, max_tokens, model_id=model_id, **kwargs
+                settings, temperature, max_tokens, model_id=model_id, **kwargs
             )
 
     @staticmethod
-    def _create_ollama_model(temperature: float, **kwargs) -> OllamaModel:
+    def _create_ollama_model(settings, temperature: float, **kwargs) -> OllamaModel:
         """Create an Ollama model instance."""
         config = {
-            "host": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-            "model_id": os.getenv("OLLAMA_MODEL", "gpt-oss:20b"),
+            "host": settings.ollama_host,
+            "model_id": settings.ollama_model,
             "temperature": temperature,
         }
         config.update(kwargs)
@@ -100,15 +102,14 @@ class ModelFactory:
 
     @staticmethod
     def _create_bedrock_model(
+        settings,
         temperature: float,
         max_tokens: int | None = None,
         model_id: str | None = None,
         **kwargs,
     ) -> BedrockModel:
         """Create a Bedrock model instance with model-specific token limits and retry config."""
-        final_model_id = model_id or os.getenv(
-            "BEDROCK_MODEL", "openai.gpt-oss-20b-1:0"
-        )
+        final_model_id = model_id or settings.bedrock_model
 
         # Set appropriate max_tokens based on model capabilities
         # Claude 3.5 Sonnet has 8192 output token limit
