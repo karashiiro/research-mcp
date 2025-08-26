@@ -16,9 +16,9 @@ from strands.types.content import ContentBlock
 from .agents import create_agent_manager
 from .config import setup_logging
 from .models import create_model
-from .search.cache import SearchCache
 from .types import ResearchResults
 from .web.content_fetcher import WebContentFetcher
+from .web.search.cache import SearchCache
 
 
 def extract_content_text(c: ContentBlock) -> str:
