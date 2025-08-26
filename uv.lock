@@ -591,7 +591,6 @@ dependencies = [
     { name = "mcp", extra = ["cli"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "python-dotenv" },
     { name = "strands-agents", extra = ["ollama"] },
 ]
 
@@ -609,7 +608,6 @@ requires-dist = [
     { name = "mcp", extras = ["cli"], specifier = ">=1.13.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "strands-agents", extras = ["ollama"], specifier = ">=1.5.0" },
 ]
 
