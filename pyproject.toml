@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 research-mcp-cli = "cli.main:main_sync"
+research-mcp = "mcp_server.server:mcp.run"
 
 [build-system]
 requires = ["hatchling"]
