@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING, Any
 
 from strands import tool
 
-from research_orchestrator.search.cache import SearchCache
-from research_orchestrator.search.web_search import web_search
 from research_orchestrator.types import SearchResults
-from research_orchestrator.utils import get_blocked_url_error, is_url_blocked
 from research_orchestrator.web import WebContentFetcher
+from research_orchestrator.web.search.cache import SearchCache
+from research_orchestrator.web.search.web_search import web_search
+from research_orchestrator.web.utils import get_blocked_url_error, is_url_blocked
 
 if TYPE_CHECKING:
     from research_orchestrator.agents import AgentManager
