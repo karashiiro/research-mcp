@@ -16,10 +16,10 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from research_orchestrator import ResearchOrchestrator
-from research_orchestrator.search.cache import SearchCache
 from research_orchestrator.web.content_fetcher import (
     WebContentFetcher,
 )
+from research_orchestrator.web.search.cache import SearchCache
 
 # Redirect print statements to stderr to avoid breaking MCP JSON protocol
 original_print = builtins.print
