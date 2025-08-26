@@ -11,8 +11,8 @@ import asyncio
 from strands.types.content import ContentBlock
 
 from research_orchestrator import ResearchOrchestrator
-from research_orchestrator.search.cache import SearchCache
 from research_orchestrator.web.content_fetcher import WebContentFetcher
+from research_orchestrator.web.search.cache import SearchCache
 
 
 def extract_content_text(c: ContentBlock) -> str:

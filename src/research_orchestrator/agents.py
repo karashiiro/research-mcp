@@ -14,9 +14,9 @@ from strands import Agent, tool
 from strands.models.model import Model
 
 from .models import ModelFactory
-from .search.cache import SearchCache
 from .tools import create_search_tools
 from .web.content_fetcher import WebContentFetcher
+from .web.search.cache import SearchCache
 
 # System prompts for different agent types
 LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who orchestrates comprehensive research through specialized subagents.

@@ -5,7 +5,7 @@ import os
 import httpx
 from httpcore._async.connection import exponential_backoff
 
-from ..types import SearchResultItem, SearchResults
+from ...types import SearchResultItem, SearchResults
 from .cache import SearchCache
 
 
