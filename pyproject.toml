@@ -13,8 +13,18 @@ dependencies = [
     "strands-agents[ollama]>=1.5.0",
 ]
 
+[project.scripts]
+research-mcp-cli = "cli.main:main_sync"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [dependency-groups]
 dev = ["mypy>=1.17.1", "pytest>=8.4.1", "ruff>=0.12.9"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cli"]
 
 [tool.ruff]
 # Formatting and linting configuration

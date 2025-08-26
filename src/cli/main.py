@@ -29,8 +29,8 @@ async def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python cli/main.py "Machine Learning in Healthcare"
-  python cli/main.py "Climate Change Impact on Agriculture"
+  python src/cli/main.py "Machine Learning in Healthcare"
+  python src/cli/main.py "Climate Change Impact on Agriculture"
         """,
     )
     parser.add_argument("topic", help="Research topic to investigate comprehensively")
@@ -92,5 +92,9 @@ Examples:
         print(f"❌ Error during research: {e}")
 
 
-if __name__ == "__main__":
+def main_sync():
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    main_sync()
