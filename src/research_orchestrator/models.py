@@ -143,7 +143,7 @@ class ModelFactory:
             "boto_client_config": boto_config,  # Add retry configuration
         }
         config.update(kwargs)
-        return BedrockModel(**config)  # type: ignore[arg-type]
+        return BedrockModel(**config)
 
     @staticmethod
     def get_supported_providers() -> dict[str, str]:

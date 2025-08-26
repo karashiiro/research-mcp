@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ..types import SearchResults
+from research_orchestrator.types import SearchResults
 
 
 class SearchCache:
@@ -17,7 +17,7 @@ class SearchCache:
     Simple file-based cache for search results to reduce API calls
     """
 
-    def __init__(self, cache_dir: str = "cache", cache_ttl_hours: int = 24):
+    def __init__(self, cache_dir: str = "cache", cache_ttl_hours: float = 24):
         """
         Initialize the search cache
 
@@ -55,7 +55,7 @@ class SearchCache:
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def _save_metadata(self, metadata: dict[str, Any]):
+    def _save_metadata(self, metadata: dict[str, Any]) -> None:
         """Save cache metadata"""
         try:
             with Path.open(self.metadata_file, "w", encoding="utf-8") as f:
@@ -112,7 +112,7 @@ class SearchCache:
             print(f"Warning: Failed to load cached results for {query}: {e}")
             return None
 
-    def set(self, query: str, count: int, results: SearchResults):
+    def set(self, query: str, count: int, results: SearchResults) -> None:
         """
         Cache search results
 
@@ -144,7 +144,7 @@ class SearchCache:
         except Exception as e:
             print(f"Warning: Failed to cache results for {query}: {e}")
 
-    def _remove_expired_entry(self, cache_key: str):
+    def _remove_expired_entry(self, cache_key: str) -> None:
         """Remove an expired cache entry"""
         try:
             cache_filepath = self._get_cache_filepath(cache_key)
@@ -160,7 +160,7 @@ class SearchCache:
         except Exception as e:
             print(f"Warning: Failed to remove expired cache entry: {e}")
 
-    def cleanup_expired(self):
+    def cleanup_expired(self) -> None:
         """Remove all expired cache entries"""
         metadata = self._load_metadata()
         expired_keys = []
@@ -175,7 +175,7 @@ class SearchCache:
         if expired_keys:
             print(f"🧹 Cleaned up {len(expired_keys)} expired cache entries")
 
-    def clear_all(self):
+    def clear_all(self) -> None:
         """Clear all cached results"""
         try:
             # Remove all cache files

@@ -2,6 +2,6 @@
 Web utilities for research orchestration.
 """
 
-from .content_fetcher import WebContentFetcher
+from research_orchestrator.web.content_fetcher import WebContentFetcher
 
 __all__ = ["WebContentFetcher"]

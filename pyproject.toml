@@ -14,11 +14,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "mypy>=1.17.1",
- "pytest>=8.4.1",
- "ruff>=0.12.9",
-]
+dev = ["mypy>=1.17.1", "pytest>=8.4.1", "ruff>=0.12.9"]
 
 [tool.ruff]
 # Formatting and linting configuration
@@ -66,3 +62,18 @@ skip-magic-trailing-comma = false
 
 # Auto-detect line endings
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+# Add src directory to Python path for imports
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.mypy]
+# Add src directory to Python path for mypy too
+mypy_path = "src"
+# Use explicit package bases to avoid module name conflicts
+explicit_package_bases = true
+# Show error codes
+show_error_codes = true
+# Skip checking external libraries without stubs
+ignore_missing_imports = true

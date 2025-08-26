@@ -6,7 +6,7 @@ proper handling of URL variations like trailing slashes, case differences,
 query parameters, and fragments.
 """
 
-from src.research_orchestrator.orchestrator import (
+from research_orchestrator.orchestrator import (
     deduplicate_citation_urls,
     normalize_url,
 )

@@ -7,17 +7,12 @@ lead researchers and specialized subagents for comprehensive topic investigation
 
 import argparse
 import asyncio
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from strands.types.content import ContentBlock
 
-from src.research_orchestrator import ResearchOrchestrator
-from src.research_orchestrator.search.cache import SearchCache
-from src.research_orchestrator.web.content_fetcher import WebContentFetcher
+from research_orchestrator import ResearchOrchestrator
+from research_orchestrator.search.cache import SearchCache
+from research_orchestrator.web.content_fetcher import WebContentFetcher
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -78,7 +73,7 @@ Examples:
             if hasattr(research_summary, "message"):
                 # Handle AgentResult object format
                 summary_text = "".join(
-                    map(extract_content_text, research_summary.message["content"])  # type: ignore[attr-defined]
+                    map(extract_content_text, research_summary.message["content"])
                 )
             elif isinstance(research_summary, dict) and "message" in research_summary:
                 # Handle dict format (AgentResponse TypedDict)

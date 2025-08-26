@@ -4,20 +4,23 @@ Research Tools for Agents
 Python tools that can be used by research agents for direct web searching and content fetching.
 """
 
-from typing import Any
+# Import AgentManager with TYPE_CHECKING to avoid circular import
+from typing import TYPE_CHECKING, Any
 
 from strands import tool
 
-from .agents import AgentManager
-from .search.cache import SearchCache
-from .search.web_search import web_search
-from .types import SearchResults
-from .utils import get_blocked_url_error, is_url_blocked
-from .web import WebContentFetcher
+from research_orchestrator.search.cache import SearchCache
+from research_orchestrator.search.web_search import web_search
+from research_orchestrator.types import SearchResults
+from research_orchestrator.utils import get_blocked_url_error, is_url_blocked
+from research_orchestrator.web import WebContentFetcher
+
+if TYPE_CHECKING:
+    from research_orchestrator.agents import AgentManager
 
 
 def create_search_tools(
-    agent_manager: AgentManager, cache: SearchCache, web_fetcher: WebContentFetcher
+    agent_manager: "AgentManager", cache: SearchCache, web_fetcher: WebContentFetcher
 ):
     """Create search tools."""
 

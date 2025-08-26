@@ -5,22 +5,23 @@ Provides MCP tools for comprehensive research orchestration using multi-agent sy
 """
 
 import asyncio
+import builtins
 import sys
 import threading
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from research_orchestrator import ResearchOrchestrator
+from research_orchestrator.search.cache import SearchCache
+from research_orchestrator.web.content_fetcher import (
+    WebContentFetcher,
+)
 
 # Redirect print statements to stderr to avoid breaking MCP JSON protocol
-import builtins
-
 original_print = builtins.print
 
 
@@ -31,11 +32,6 @@ def mcp_safe_print(*args, **kwargs):
 
 builtins.print = mcp_safe_print
 
-from research_orchestrator import ResearchOrchestrator  # type: ignore  # noqa: E402
-from research_orchestrator.search.cache import SearchCache  # type: ignore  # noqa: E402
-from research_orchestrator.web.content_fetcher import (  # type: ignore  # noqa: E402
-    WebContentFetcher,
-)
 
 # Create the FastMCP server instance
 mcp = FastMCP("Deep Research")
