@@ -189,15 +189,3 @@ class SearchCache:
 
         except Exception as e:
             print(f"Warning: Failed to clear cache: {e}")
-
-
-# Global cache instance
-_cache_instance = None
-
-
-def get_cache() -> SearchCache:
-    """Get the global cache instance"""
-    global _cache_instance
-    if _cache_instance is None:
-        _cache_instance = SearchCache()
-    return _cache_instance

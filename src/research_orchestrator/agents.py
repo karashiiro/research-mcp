@@ -14,6 +14,9 @@ from strands import Agent, tool
 from strands.models.model import Model
 
 from .models import ModelFactory
+from .search.cache import SearchCache
+from .tools import create_search_tools
+from .web.content_fetcher import WebContentFetcher
 
 # System prompts for different agent types
 LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who orchestrates comprehensive research through specialized subagents.
@@ -139,6 +142,9 @@ class AgentManager:
         num_subagents: int = 5,
         subagent_model_pool: list[str] | None = None,
         progress_callback=None,
+        *,
+        cache: SearchCache,
+        web_fetcher: WebContentFetcher,
     ):
         """
         Initialize the agent manager with support for hybrid model pools.
@@ -149,6 +155,8 @@ class AgentManager:
             subagent_model_pool: Optional list of model IDs for subagents. If None, uses main model.
             progress_callback: Optional callback for progress updates
         """
+        self.cache = cache
+        self.web_fetcher = web_fetcher
         self.model = model  # Lead researcher model
         self.num_subagents = num_subagents
         self.subagent_model_pool = subagent_model_pool or []
@@ -169,10 +177,7 @@ class AgentManager:
         # Create subagent models from pool first
         self._create_subagent_models()
 
-        # Create research tools with URL tracking
-        from .tools import create_tracking_tools
-
-        research_tools = create_tracking_tools(self)
+        research_tools = create_search_tools(self, self.cache, self.web_fetcher)
         self.subagents = []
         for i in range(self.num_subagents):
             # Use different models for each subagent
@@ -244,7 +249,12 @@ class AgentManager:
 
 
 def create_agent_manager(
-    model: Model, progress_callback=None, num_subagents: int = 5
+    model: Model,
+    progress_callback=None,
+    num_subagents: int = 5,
+    *,
+    cache: SearchCache,
+    web_fetcher: WebContentFetcher,
 ) -> AgentManager:
     """Convenience function to create an agent manager with hybrid model support."""
     # Read subagent model pool from environment
@@ -262,7 +272,14 @@ def create_agent_manager(
     else:
         print("🎭 No subagent model pool specified, using main model for all agents")
 
-    return AgentManager(model, num_subagents, subagent_model_pool, progress_callback)
+    return AgentManager(
+        model,
+        num_subagents,
+        subagent_model_pool,
+        progress_callback,
+        cache=cache,
+        web_fetcher=web_fetcher,
+    )
 
 
 # Agent-as-Tools Implementation

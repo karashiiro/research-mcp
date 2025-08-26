@@ -6,10 +6,12 @@ import httpx
 from httpcore._async.connection import exponential_backoff
 
 from ..types import SearchResultItem, SearchResults
-from .cache import get_cache
+from .cache import SearchCache
 
 
-async def web_search(query: str, count: int = 10) -> SearchResults:
+async def web_search(
+    query: str, count: int = 10, *, cache: SearchCache
+) -> SearchResults:
     """
     Perform a web search using the Brave Search API with caching.
 
@@ -24,8 +26,6 @@ async def web_search(query: str, count: int = 10) -> SearchResults:
         ValueError: If BRAVE_API_KEY environment variable is not set
         httpx.HTTPError: If the API request fails
     """
-    # Check cache first
-    cache = get_cache()
     cached_results = cache.get(query, count)
     if cached_results is not None:
         return cached_results

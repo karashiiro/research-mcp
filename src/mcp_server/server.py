@@ -32,6 +32,10 @@ def mcp_safe_print(*args, **kwargs):
 builtins.print = mcp_safe_print
 
 from research_orchestrator import ResearchOrchestrator  # type: ignore  # noqa: E402
+from research_orchestrator.search.cache import SearchCache  # type: ignore  # noqa: E402
+from research_orchestrator.web.content_fetcher import (  # type: ignore  # noqa: E402
+    WebContentFetcher,
+)
 
 # Create the FastMCP server instance
 mcp = FastMCP("Deep Research")
@@ -44,6 +48,10 @@ _research_jobs: dict[str, dict[str, Any]] = {}
 # Global progress tracking
 _progress_callbacks: dict[str, Callable] = {}
 
+# Search cache and web fetcher instances
+_cache = SearchCache()
+_web_fetcher = WebContentFetcher()
+
 
 class JobStatus:
     PENDING = "pending"
@@ -55,7 +63,9 @@ class JobStatus:
 def create_orchestrator(progress_callback=None) -> ResearchOrchestrator:
     """Create a fresh research orchestrator instance for each job."""
     # Each job gets its own orchestrator to avoid state contamination
-    return ResearchOrchestrator(progress_callback)
+    return ResearchOrchestrator(
+        progress_callback, cache=_cache, web_fetcher=_web_fetcher
+    )
 
 
 def create_job(topic: str) -> str:

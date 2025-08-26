@@ -16,7 +16,9 @@ from strands.types.content import ContentBlock
 from .agents import create_agent_manager
 from .config import setup_logging
 from .models import create_model
+from .search.cache import SearchCache
 from .types import ResearchResults
+from .web.content_fetcher import WebContentFetcher
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -144,12 +146,20 @@ class ResearchOrchestrator:
     Uses async iterators for performance optimization.
     """
 
-    def __init__(self, progress_callback=None):
+    def __init__(
+        self,
+        progress_callback=None,
+        *,
+        cache: SearchCache,
+        web_fetcher: WebContentFetcher,
+    ):
         # Create model instance for all agents
         self.model = create_model()
 
         # Create agent manager with callback support
-        self.agent_manager = create_agent_manager(self.model, progress_callback)
+        self.agent_manager = create_agent_manager(
+            self.model, progress_callback, cache=cache, web_fetcher=web_fetcher
+        )
 
         # Set up logging
         self.research_logger = setup_logging()

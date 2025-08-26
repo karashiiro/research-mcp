@@ -8,17 +8,18 @@ from typing import Any
 
 from strands import tool
 
+from .agents import AgentManager
+from .search.cache import SearchCache
 from .search.web_search import web_search
 from .types import SearchResults
 from .utils import get_blocked_url_error, is_url_blocked
 from .web import WebContentFetcher
 
-# Create a shared content fetcher instance
-_content_fetcher = WebContentFetcher()
 
-
-def create_tracking_tools(agent_manager):
-    """Create tools with URL tracking capabilities."""
+def create_search_tools(
+    agent_manager: AgentManager, cache: SearchCache, web_fetcher: WebContentFetcher
+):
+    """Create search tools."""
 
     @tool
     async def search_web(query: str, count: int = 5) -> dict[str, Any]:
@@ -44,7 +45,7 @@ def create_tracking_tools(agent_manager):
         """
         try:
             # Perform the web search
-            search_results: SearchResults = await web_search(query, count)
+            search_results: SearchResults = await web_search(query, count, cache=cache)
 
             # Convert to agent-friendly format
             formatted_results: dict[str, Any] = {
@@ -116,7 +117,7 @@ def create_tracking_tools(agent_manager):
 
         # Fetch content from non-blocked URLs
         if filtered_urls:
-            fetch_results = await _content_fetcher.fetch_content_batch(filtered_urls)
+            fetch_results = await web_fetcher.fetch_content_batch(filtered_urls)
         else:
             fetch_results = []
 

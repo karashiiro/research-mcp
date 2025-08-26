@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from strands.types.content import ContentBlock
 
 from src.research_orchestrator import ResearchOrchestrator
+from src.research_orchestrator.search.cache import SearchCache
+from src.research_orchestrator.web.content_fetcher import WebContentFetcher
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -40,7 +42,10 @@ Examples:
 
     args = parser.parse_args()
 
-    orchestrator = ResearchOrchestrator()
+    cache = SearchCache()
+    web_fetcher = WebContentFetcher()
+
+    orchestrator = ResearchOrchestrator(cache=cache, web_fetcher=web_fetcher)
     research_topic = args.topic
 
     print("🚀 Deep Research Orchestration System")
