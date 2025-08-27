@@ -418,9 +418,9 @@ Topic: {topic}
 Started: {started_at}{progress_info}
 
 Research is actively running with multiple agents conducting comprehensive analysis.
-This typically takes 3-5 minutes for complex topics.
+This can take up to 15 minutes for complex topics.
 
-Next step: Call wait_for_research_report(30) to wait, then get_research_report("{job_id}") to check progress again."""
+Next step: Call wait_for_research_report(60) to wait, then get_research_report("{job_id}") to check progress again."""
 
         elif status == JobStatus.COMPLETED:
             completed_at = job.get("completed_at", "Unknown")
