@@ -7,3 +7,7 @@ cache/
 .vscode/
 .DS_Store
 .idea/
+
+htmlcov/
+.coverage
+coverage.*

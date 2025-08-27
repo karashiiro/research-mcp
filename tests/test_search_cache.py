@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
-from research_orchestrator.search.cache import SearchCache
 from research_orchestrator.types import SearchResults
+from research_orchestrator.web.search.cache import SearchCache
 
 
 class TestSearchCache:

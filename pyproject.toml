@@ -22,7 +22,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["mypy>=1.17.1", "pytest>=8.4.1", "ruff>=0.12.9"]
+dev = [
+    "mypy>=1.17.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.12.9",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cli"]
@@ -78,6 +83,50 @@ line-ending = "auto"
 # Add src directory to Python path for imports
 pythonpath = ["src"]
 testpaths = ["tests"]
+# Coverage configuration
+addopts = [
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=32"
+]
+
+[tool.coverage.run]
+# Source paths for coverage measurement
+source = ["src"]
+# Omit test files from coverage
+omit = [
+    "tests/*",
+    "src/*/test_*",
+    "*/tests/*"
+]
+
+[tool.coverage.report]
+# Show missing lines in coverage report
+show_missing = true
+# Skip covered files in output
+skip_covered = false
+# Precision for coverage percentage
+precision = 1
+# Exclude lines from coverage
+exclude_also = [
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self\\.debug",
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+    # Don't complain about abstract methods:
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+# Directory for HTML coverage report
+directory = "htmlcov"
 
 [tool.mypy]
 # Add src directory to Python path for mypy too
