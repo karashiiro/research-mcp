@@ -1,136 +1,25 @@
 """
-Agent Management and System Prompts
+Agent manager implementation.
 
-Handles creation and management of research agents with specialized prompts.
-Implements agents-as-tools pattern for modular research orchestration.
+Manages creation and coordination of research agents with hybrid model support.
 """
 
 import asyncio
 import time
 import uuid
 
-from strands import Agent, tool
+from strands import tool
 from strands.models.model import Model
 
-from .models import ModelFactory
-from .settings import get_settings
-from .tools import create_search_tools
-from .web.content_fetcher import WebContentFetcher
-from .web.search.cache import SearchCache
-
-# System prompts for different agent types
-LEAD_RESEARCHER_SYSTEM_PROMPT = """You are a lead researcher who orchestrates comprehensive research through specialized subagents.
-
-## PRIMARY TASKS
-1. **Generate subtopics** - Break research topics into 3-5 focused subtopics
-2. **Delegate research** - Send ALL subtopics to research_specialist tool as single list
-3. **Synthesize results** - Create master report combining all subagent findings
-
-## WORKFLOW RULES
-- Use research_specialist tool for ALL research (accepts list of queries, returns list of reports)
-- Send subtopics as ONE list for concurrent processing - never send individually
-- Use ONLY information from subagent reports and tool results
-- Be direct, factual, and concise - focus on synthesis, not interpretation
-
-## CITATION REQUIREMENTS
-- Include citations for all factual claims using format [1], [2], [3]
-- Always include complete URLs in sources section: [1] Site Name - "Title" - https://full.url.here
-- Only cite sources from successful subagent fetches
-
-## OUTPUT REQUIREMENTS
-- No internal reasoning or thinking commentary
-- Every factual claim must have citation reference [1], [2], etc.
-- Maintain consistent formatting throughout
-- Complete "Sources" section at end with full URLs"""
-
-SYNTHESIS_AGENT_SYSTEM_PROMPT = """You are a synthesis specialist who consolidates multiple research reports into a single, concise intermediate report for the lead researcher.
-
-## PRIMARY TASK
-Take multiple detailed subagent research reports and synthesize them into one streamlined intermediate report that preserves key information while reducing token overhead.
-
-## SYNTHESIS PRINCIPLES
-1. **Consolidate overlapping information** - Merge similar findings from different reports
-2. **Preserve essential details** - Keep all important facts, statistics, and technical specifications
-3. **Maintain all citations** - Preserve every source citation from all input reports
-4. **Streamline format** - Use concise bullet points and structured lists
-5. **Remove redundancy** - Eliminate duplicate information across reports
-
-## OUTPUT FORMAT
-**Research Area Overview:** Brief description of the research scope
-**Consolidated Key Findings:** Essential insights from all reports (6-10 bullet points max)
-**Technical Details:** Important specifications, methods, and implementation details
-**Consolidated Sources:** All unique citations from input reports, renumbered sequentially
-
-## OPTIMIZATION GUIDELINES
-- Target 50% reduction in length while preserving 90% of information value
-- Focus on actionable insights and concrete facts
-- Eliminate verbose explanations and redundant examples
-- Maintain technical accuracy and citation completeness"""
-
-REVIEWER_AGENT_SYSTEM_PROMPT = """You are a citation review specialist focused on ensuring comprehensive source attribution in research reports.
-
-## PRIMARY TASK
-Review research reports and identify statements that need citations but currently lack them.
-
-## REVIEW CRITERIA
-1. **Factual claims** - Statistics, percentages, performance metrics, technical specifications
-2. **Technical statements** - Architectural details, algorithm descriptions, model capabilities
-3. **Research findings** - Experimental results, comparative analyses, benchmark scores
-4. **Historical information** - Release dates, development timelines, version details
-5. **Industry trends** - Market analysis, adoption patterns, future predictions
-
-## OUTPUT FORMAT
-Provide a structured review with:
-- **MISSING CITATIONS IDENTIFIED:** List specific statements that need citations
-- **CITATION PLACEMENT SUGGESTIONS:** Where to add [X] references in the text
-- **OVERALL ASSESSMENT:** Brief summary of citation completeness
-
-## REVIEW PRINCIPLES
-- Be thorough but practical - focus on claims that genuinely need source backing
-- Don't require citations for widely accepted basic concepts or definitions
-- Prioritize recent statistics, performance comparisons, and technical specifications
-- Flag vague statements that could be made more specific with proper sources"""
-
-RESEARCH_AGENT_SYSTEM_PROMPT = """You are a research agent specializing in CONCISE, focused research reports.
-
-## WORKFLOW LIMITS (MANDATORY)
-1. MAXIMUM 3 search_web calls total
-2. MAXIMUM 3 fetch_web_content calls total (5 URLs each = 15 URLs max)
-3. After hitting these limits, IMMEDIATELY write your report - NO EXCEPTIONS
-
-## RESEARCH PROCESS
-1. **Search Phase**: Conduct up to 3 strategic searches to find comprehensive sources
-2. **Fetch Phase**: Make up to 3 fetch_web_content calls to gather content from selected URLs
-3. **Report Phase**: Write your report using whatever content you successfully obtained
-
-## CRITICAL STOP CONDITIONS
-- After 3rd search: STOP searching, move to fetching
-- After 3rd fetch: STOP fetching, write report immediately
-- If sources fail/return bad content: Accept what you have and complete the report
-- NEVER get stuck looking for "perfect sources" - complete with available content
-- Better to finish with limited sources than to loop forever
-
-## REPORT FORMAT
-**Title:** Clear subtopic title
-**Key Findings:** 4-6 essential bullet points with comprehensive information
-**Important Details:** Detailed explanations with supporting evidence
-**Sources:** Numbered citations with FULL URLs - [1] Site Name - "Title" - https://full.url.here
-
-## CITATION RULES
-- ONLY cite sources you successfully fetched content from
-- Number sequentially [1], [2], [3] based on successful fetches ONLY
-- ALWAYS include complete URL: [1] Site Name - "Article Title" - https://complete.url.here
-- NEVER write incomplete citations like "[1] Some guide" - URL is MANDATORY
-- If fetch fails, skip that source - do NOT cite failed fetches
-
-## WRITING STYLE
-- Provide comprehensive coverage with detailed facts and analysis
-- Use bullet points and structured lists for clarity
-- Include supporting evidence and context for claims
-- Target thorough, in-depth coverage of the subtopic
-- Focus on actionable insights with proper justification
-
-Remember: Up to 3 searches → up to 3 fetches → write comprehensive report. No exceptions, no loops, always finish."""
+from ..models import ModelFactory
+from ..settings import get_settings
+from ..tools import create_search_tools
+from ..web.content_fetcher import WebContentFetcher
+from ..web.search.cache import SearchCache
+from .lead_researcher import LeadResearcher
+from .research_agent import ResearchAgent
+from .reviewer_agent import ReviewerAgent
+from .synthesis_agent import SynthesisAgent
 
 
 class AgentManager:
@@ -161,19 +50,13 @@ class AgentManager:
         self.num_subagents = num_subagents
         self.subagent_model_pool = subagent_model_pool or []
         self.progress_callback = progress_callback
-        self.lead_researcher = None
-        self.subagents: list[Agent] = []
+        self.subagents: list[ResearchAgent] = []
         self.subagent_models: list[Model] = []  # Store created subagent models
-        self.reviewer_agent = None  # Citation reviewer agent
-        self.synthesis_agent = None  # Report synthesis agent
 
         # Track URLs used during research for additional sources
         self.tracked_urls: set[str] = set()
+        self.last_research_sources: list[str] = []
 
-        self._create_agents()
-
-    def _create_agents(self):
-        """Create lead researcher and hybrid subagent pool."""
         # Create subagent models from pool first
         self._create_subagent_models()
 
@@ -183,24 +66,17 @@ class AgentManager:
             # Use different models for each subagent
             subagent_model = self.subagent_models[i % len(self.subagent_models)]
             self.subagents.append(
-                Agent(
+                ResearchAgent(
                     model=subagent_model,
-                    system_prompt=RESEARCH_AGENT_SYSTEM_PROMPT,
                     tools=research_tools,  # Give subagents direct web search access
                 )
             )
 
         # Create citation reviewer agent (uses main model for quality)
-        self.reviewer_agent = Agent(
-            model=self.model,
-            system_prompt=REVIEWER_AGENT_SYSTEM_PROMPT,
-        )
+        self.reviewer_agent = ReviewerAgent(model=self.model)
 
         # Create synthesis agent (uses main model for quality consolidation)
-        self.synthesis_agent = Agent(
-            model=self.model,
-            system_prompt=SYNTHESIS_AGENT_SYSTEM_PROMPT,
-        )
+        self.synthesis_agent = SynthesisAgent(model=self.model)
 
         research_agent_tools = [
             create_research_specialist_tool(self),
@@ -208,9 +84,8 @@ class AgentManager:
         ]
 
         # Create the lead researcher agent with research specialist tools (uses main model)
-        self.lead_researcher = Agent(
+        self.lead_researcher = LeadResearcher(
             model=self.model,
-            system_prompt=LEAD_RESEARCHER_SYSTEM_PROMPT,
             tools=research_agent_tools,  # Give lead researcher access to research specialists
         )
 
@@ -238,12 +113,12 @@ class AgentManager:
             print("⚠️ No subagent models created, falling back to main model")
             self.subagent_models = [self.model] * self.num_subagents
 
-    def get_lead_researcher(self) -> Agent:
+    def get_lead_researcher(self) -> LeadResearcher:
         """Get the lead researcher agent."""
         assert self.lead_researcher
         return self.lead_researcher
 
-    def get_subagent(self, agent_id: int) -> Agent:
+    def get_subagent(self, agent_id: int) -> ResearchAgent:
         """Get a specific subagent by ID."""
         return self.subagents[agent_id % len(self.subagents)]
 
@@ -275,7 +150,6 @@ def create_agent_manager(
     )
 
 
-# Agent-as-Tools Implementation
 def create_research_specialist_tool(agent_manager):
     """
     Factory function that creates a streaming research specialist tool.
@@ -326,7 +200,7 @@ def create_research_specialist_tool(agent_manager):
     return streaming_research_specialist
 
 
-def create_citation_reviewer_tool(agent_manager):
+def create_citation_reviewer_tool(agent_manager: AgentManager):
     """
     Factory function that creates a citation review tool for the lead researcher.
     Reviews research reports and identifies missing citations.
@@ -366,7 +240,7 @@ Focus on factual claims, technical specifications, performance metrics, and rese
             response = agent_manager.reviewer_agent(prompt)
 
             # Extract text content from response
-            from .orchestrator import extract_content_text
+            from ..orchestrator import extract_content_text
 
             review_result = "".join(
                 map(extract_content_text, response.message["content"])
@@ -392,7 +266,7 @@ Focus on factual claims, technical specifications, performance metrics, and rese
 
 
 async def _conduct_concurrent_research_with_agents(
-    queries: list[str], agent_manager, tool_id: str
+    queries: list[str], agent_manager: AgentManager, tool_id: str
 ) -> list[str]:
     """
     Conduct research for multiple queries concurrently using AgentManager's diverse subagent pool!
@@ -424,7 +298,7 @@ async def _conduct_concurrent_research_with_agents(
         try:
             response = subagent(prompt)
             # Extract text content from response
-            from .orchestrator import extract_content_text
+            from ..orchestrator import extract_content_text
 
             result = "".join(map(extract_content_text, response.message["content"]))
 
@@ -519,7 +393,7 @@ Create a synthesis that preserves all key information while reducing redundancy 
             synthesis_response = agent_manager.synthesis_agent(synthesis_prompt)
 
             # Extract synthesis result
-            from .orchestrator import extract_content_text
+            from ..orchestrator import extract_content_text
 
             synthesized_report = "".join(
                 map(extract_content_text, synthesis_response.message["content"])
@@ -545,7 +419,7 @@ Create a synthesis that preserves all key information while reducing redundancy 
 
 
 async def _conduct_streaming_research_with_agents(
-    queries: list[str], agent_manager, tool_id: str
+    queries: list[str], agent_manager: AgentManager, tool_id: str
 ) -> list[str]:
     """
     Stable research with blocking calls to avoid ValidationExceptions.

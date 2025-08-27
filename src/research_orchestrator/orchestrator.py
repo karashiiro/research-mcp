@@ -237,7 +237,7 @@ Return ONLY the final master synthesis report as your complete response. No JSON
             )
 
             # Get source information from agent manager (set during research specialist tool execution)
-            all_sources = getattr(self.agent_manager, "last_research_sources", [])
+            all_sources = self.agent_manager.last_research_sources
             source_count = len(all_sources)
 
             # Filter additional sources to exclude already cited URLs (using normalized comparison)
