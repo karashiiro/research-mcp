@@ -57,37 +57,16 @@ class AgentManager:
         self.tracked_urls: set[str] = set()
         self.last_research_sources: list[str] = []
 
+        # Initialize agent instances
+        self.lead_researcher: LeadResearcher | None = None
+        self.reviewer_agent: ReviewerAgent | None = None
+        self.synthesis_agent: SynthesisAgent | None = None
+
         # Create subagent models from pool first
         self._create_subagent_models()
 
-        research_tools = create_search_tools(self, self.cache, self.web_fetcher)
-        self.subagents = []
-        for i in range(self.num_subagents):
-            # Use different models for each subagent
-            subagent_model = self.subagent_models[i % len(self.subagent_models)]
-            self.subagents.append(
-                ResearchAgent(
-                    model=subagent_model,
-                    tools=research_tools,  # Give subagents direct web search access
-                )
-            )
-
-        # Create citation reviewer agent (uses main model for quality)
-        self.reviewer_agent = ReviewerAgent(model=self.model)
-
-        # Create synthesis agent (uses main model for quality consolidation)
-        self.synthesis_agent = SynthesisAgent(model=self.model)
-
-        research_agent_tools = [
-            create_research_specialist_tool(self),
-            create_citation_reviewer_tool(self),
-        ]
-
-        # Create the lead researcher agent with research specialist tools (uses main model)
-        self.lead_researcher = LeadResearcher(
-            model=self.model,
-            tools=research_agent_tools,  # Give lead researcher access to research specialists
-        )
+        # Create all agents
+        self._create_agents()
 
     def _create_subagent_models(self):
         """Create model instances for subagents from the model pool."""
@@ -113,9 +92,45 @@ class AgentManager:
             print("⚠️ No subagent models created, falling back to main model")
             self.subagent_models = [self.model] * self.num_subagents
 
+    def _create_agents(self):
+        """Create lead researcher and hybrid subagent pool."""
+        # Create research tools for subagents
+        research_tools = create_search_tools(self, self.cache, self.web_fetcher)
+
+        # Create subagents
+        self.subagents = []
+        for i in range(self.num_subagents):
+            # Use different models for each subagent
+            subagent_model = self.subagent_models[i % len(self.subagent_models)]
+            self.subagents.append(
+                ResearchAgent(
+                    model=subagent_model,
+                    tools=research_tools,  # Give subagents direct web search access
+                )
+            )
+
+        # Create citation reviewer agent (uses main model for quality)
+        self.reviewer_agent = ReviewerAgent(model=self.model)
+
+        # Create synthesis agent (uses main model for quality consolidation)
+        self.synthesis_agent = SynthesisAgent(model=self.model)
+
+        # Create research agent tools for lead researcher
+        research_agent_tools = [
+            create_research_specialist_tool(self),
+            create_citation_reviewer_tool(self),
+        ]
+
+        # Create the lead researcher agent with research specialist tools (uses main model)
+        self.lead_researcher = LeadResearcher(
+            model=self.model,
+            tools=research_agent_tools,  # Give lead researcher access to research specialists
+        )
+
     def get_lead_researcher(self) -> LeadResearcher:
         """Get the lead researcher agent."""
-        assert self.lead_researcher
+        if self.lead_researcher is None:
+            raise RuntimeError("Lead researcher not initialized")
         return self.lead_researcher
 
     def get_subagent(self, agent_id: int) -> ResearchAgent:
@@ -237,6 +252,8 @@ def create_citation_reviewer_tool(agent_manager: AgentManager):
 Focus on factual claims, technical specifications, performance metrics, and research findings that should be backed by sources. Provide specific suggestions for where citations should be added."""
 
         try:
+            if agent_manager.reviewer_agent is None:
+                raise RuntimeError("Reviewer agent not initialized")
             response = agent_manager.reviewer_agent(prompt)
 
             # Extract text content from response
@@ -390,6 +407,8 @@ async def _conduct_concurrent_research_with_agents(
 Create a synthesis that preserves all key information while reducing redundancy and token overhead. Maintain all citations and technical details."""
 
         try:
+            if agent_manager.synthesis_agent is None:
+                raise RuntimeError("Synthesis agent not initialized")
             synthesis_response = agent_manager.synthesis_agent(synthesis_prompt)
 
             # Extract synthesis result

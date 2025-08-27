@@ -5,17 +5,15 @@ Streaming architecture with real-time event processing.
 Uses async iterators and framework-native optimizations for enhanced performance.
 """
 
-import re
 import time
 import uuid
-from datetime import datetime
-from urllib.parse import urlparse, urlunparse
 
 from strands.types.content import ContentBlock
 
 from .agents import create_agent_manager
 from .logger import setup_logging
 from .models import create_model
+from .processing import CitationProcessor, ResultFormatter, SourceTracker
 from .types import ResearchResults
 from .web.content_fetcher import WebContentFetcher
 from .web.search.cache import SearchCache
@@ -32,112 +30,6 @@ def extract_content_text(c: ContentBlock) -> str:
         if "reasoningText" in reasoning and "text" in reasoning["reasoningText"]:
             return reasoning["reasoningText"]["text"]
     return ""
-
-
-def normalize_url(url: str) -> str:
-    """
-    Normalize URLs for consistent comparison using proper URL parsing.
-    Handles trailing slashes, case differences, query params, and fragments.
-    """
-    try:
-        parsed = urlparse(url.strip())
-
-        # Normalize components
-        scheme = parsed.scheme.lower()
-        netloc = parsed.netloc.lower()
-        path = parsed.path.rstrip("/").lower()  # Remove trailing slash and lowercase
-
-        # Ignore query parameters and fragments for deduplication
-        # (they usually don't affect the core content)
-
-        # Reconstruct normalized URL
-        normalized = urlunparse((scheme, netloc, path, "", "", ""))
-        return normalized
-    except Exception:
-        # Fallback to original URL if parsing fails
-        return url.strip().lower()
-
-
-def deduplicate_citation_urls(master_synthesis: str) -> str:
-    """
-    Programmatically deduplicate URLs in the Sources section of master synthesis.
-
-    This fixes the issue where the lead researcher creates multiple citation numbers
-    for the same URL (e.g., [1], [5], [9] all pointing to the same URL).
-
-    Args:
-        master_synthesis: The master synthesis text with potentially duplicate URLs
-
-    Returns:
-        Fixed synthesis with deduplicated URLs and updated citation numbers
-    """
-    # Extract the Sources section
-    sources_pattern = r"## Sources\s*\n\n(.*?)(?=\n\n##|\n\n\*\*|\Z)"
-    sources_match = re.search(sources_pattern, master_synthesis, re.DOTALL)
-
-    if not sources_match:
-        return master_synthesis
-
-    sources_section = sources_match.group(1)
-
-    # Parse citation entries: [1] Site Name – "Title" – https://url.com (with em dashes)
-    citation_pattern = r'\[(\d+)\]\s+([^–]+)\s+–\s+"([^"]+)"\s+–\s+(https?://[^\s\n]+)'
-    citations = re.findall(citation_pattern, sources_section)
-
-    if not citations:
-        return master_synthesis
-
-    # Create URL to citation mapping (deduplicate by normalized URL)
-    url_to_citation = {}
-    citation_counter = 1
-
-    for old_num, site_name, title, url in citations:
-        normalized_url = normalize_url(url)
-        if normalized_url not in url_to_citation:
-            url_to_citation[normalized_url] = {
-                "new_num": citation_counter,
-                "site_name": site_name.strip(),
-                "title": title.strip(),
-                "original_url": url,  # Keep original URL for display
-                "old_nums": [old_num],
-            }
-            citation_counter += 1
-        else:
-            # Add this old citation number as an alias
-            url_to_citation[normalized_url]["old_nums"].append(old_num)
-
-    # Create mapping from old citation numbers to new ones
-    old_to_new_mapping = {}
-    for url_info in url_to_citation.values():
-        for old_num in url_info["old_nums"]:
-            old_to_new_mapping[old_num] = str(url_info["new_num"])
-
-    # Replace citation numbers in the main text
-    updated_synthesis = master_synthesis
-    for old_num, new_num in old_to_new_mapping.items():
-        # Replace [old_num] with [new_num] throughout the text
-        updated_synthesis = re.sub(
-            rf"\[{re.escape(old_num)}\]", f"[{new_num}]", updated_synthesis
-        )
-
-    # Rebuild the Sources section with deduplicated entries
-    new_sources_lines = []
-    for _, info in url_to_citation.items():
-        new_sources_lines.append(
-            f'[{info["new_num"]}] {info["site_name"]} – "{info["title"]}" – {info["original_url"]}'
-        )
-
-    new_sources_section = "\n".join(new_sources_lines)
-
-    # Replace the old Sources section with the new one
-    updated_synthesis = re.sub(
-        sources_pattern,
-        f"## Sources\n\n{new_sources_section}",
-        updated_synthesis,
-        flags=re.DOTALL,
-    )
-
-    return updated_synthesis
 
 
 class ResearchOrchestrator:
@@ -166,6 +58,11 @@ class ResearchOrchestrator:
 
         # Progress callback for real-time updates
         self.progress_callback = progress_callback
+
+        # Initialize processing components
+        self.citation_processor = CitationProcessor()
+        self.result_formatter = ResultFormatter()
+        self.source_tracker = SourceTracker()
 
     async def complete_research_workflow(self, main_topic: str) -> ResearchResults:
         """
@@ -226,60 +123,29 @@ Return ONLY the final master synthesis report as your complete response. No JSON
             processing_start = time.time()
             self.research_logger.info(f"🔄 [{workflow_id}] Processing response...")
 
-            master_synthesis = "".join(
+            raw_synthesis = "".join(
                 map(extract_content_text, response.message["content"])
             )
 
-            # Apply programmatic URL deduplication to fix citation issues
-            master_synthesis = deduplicate_citation_urls(master_synthesis)
-            self.research_logger.info(
-                f"🔧 [{workflow_id}] Applied URL deduplication to master synthesis"
+            # Initialize source tracker with sources from agent manager
+            all_sources = self.agent_manager.last_research_sources
+            self.source_tracker.add_urls(all_sources)
+
+            # Process synthesis with citation deduplication and additional sources
+            processed_synthesis = self.result_formatter.process_synthesis_with_sources(
+                raw_synthesis, self.source_tracker, apply_deduplication=True
             )
 
-            # Get source information from agent manager (set during research specialist tool execution)
-            all_sources = self.agent_manager.last_research_sources
-            source_count = len(all_sources)
+            self.research_logger.info(
+                f"🔧 [{workflow_id}] Applied URL deduplication and added additional sources"
+            )
 
-            # Filter additional sources to exclude already cited URLs (using normalized comparison)
-            # Extract all URLs from the Sources section for comparison
-            cited_urls = set()
-            sources_pattern = r"## Sources\s*\n\n(.*?)(?=\n\n##|\n\n\*\*|\Z)"
-            sources_match = re.search(sources_pattern, master_synthesis, re.DOTALL)
-            if sources_match:
-                citation_pattern = r"https?://[^\s\n]+"
-                cited_urls = {
-                    normalize_url(url)
-                    for url in re.findall(citation_pattern, sources_match.group(1))
-                }
-
-            additional_sources = [
-                source
-                for source in all_sources
-                if normalize_url(source) not in cited_urls
-            ]
-
-            # Programmatically append Additional Research Sources section
-            if additional_sources:
-                additional_sources_section = "\n\n## Additional Research Sources\n\n"
-                additional_sources_section += "The following sources were also consulted during research but may not be directly cited above:\n\n"
-
-                for source in additional_sources:
-                    additional_sources_section += f"- {source}\n"
-
-                additional_sources_section += f"\nAdditional sources: {len(additional_sources)} | Total sources consulted: {source_count}"
-
-                # Append to master synthesis
-                master_synthesis += additional_sources_section
-
-            final_report = ResearchResults(
+            # Create final report using result formatter
+            final_report = self.result_formatter.create_research_results(
                 main_topic=main_topic,
-                subtopics_count=0,
-                subtopic_research=[],
-                master_synthesis=master_synthesis,
-                summary=f"Comprehensive research conducted on '{main_topic}' via delegation to lead researcher. Used {source_count} unique sources from research.",
-                generated_at=datetime.now().isoformat(),
-                total_unique_sources=source_count,
-                all_sources_used=all_sources,
+                master_synthesis=processed_synthesis,
+                source_tracker=self.source_tracker,
+                additional_context="via delegation to lead researcher",
             )
 
             processing_end = time.time()
