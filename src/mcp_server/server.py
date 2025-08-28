@@ -4,8 +4,6 @@ Research MCP Server Implementation
 Provides MCP tools for comprehensive research orchestration using multi-agent systems.
 """
 
-import asyncio
-
 # Redirect print statements to stderr to avoid breaking MCP JSON protocol
 import builtins
 import sys
@@ -273,14 +271,9 @@ Topic: {topic}
 
 Your research is now running in the background. This typically takes 3-5 minutes to complete.
 
-Recommended workflow:
-1. Wait for research to start: wait_for_research_report(60)
-2. Check status: get_research_report("{job_id}")
-3. If still in progress, repeat: wait_for_research_report(30) then get_research_report("{job_id}")
-
 The research will continue running even if you don't poll immediately.
 
-Next step: Call wait_for_research_report(60) to wait for research to begin, then check status."""
+Next step: Call get_research_report("{job_id}") to check status."""
 
     except Exception as e:
         return f"Error starting research job: {str(e)}"
@@ -364,7 +357,7 @@ Created: {created_at}
 
 Your research job is queued and will start shortly.
 
-Next step: Call wait_for_research_report(30) to wait, then get_research_report("{job_id}") to check status."""
+Next step: Call get_research_report("{job_id}") to check status."""
 
         elif status == JobStatus.IN_PROGRESS:
             started_at = job.get("started_at", "Unknown")
@@ -400,7 +393,7 @@ Started: {started_at}{progress_info}
 Research is actively running with multiple agents conducting comprehensive analysis.
 This typically takes 3-5 minutes for complex topics.
 
-Next step: Call wait_for_research_report(30) to wait, then get_research_report("{job_id}") to check progress again."""
+Next step: Call get_research_report("{job_id}") to check progress again."""
 
         elif status == JobStatus.COMPLETED:
             completed_at = job.get("completed_at", "Unknown")
@@ -434,60 +427,6 @@ The research job encountered an error. You can try creating a new research job w
 
     except Exception as e:
         return f"Error retrieving job status: {str(e)}"
-
-
-@mcp.tool()
-async def wait_for_research_report(seconds: int = 30) -> str:
-    """
-    <tool_description>
-    Wait for a specified number of seconds, then prompt to check research status again.
-
-    This tool provides a concrete "waiting" action for Claude Desktop to use
-    while research jobs are running in the background.
-    </tool_description>
-
-    <tool_usage_guidelines>
-    Use this tool when:
-    - A research job is IN PROGRESS and you need to wait before checking again
-    - You want to pause before calling get_research_report again
-    - You need a structured way to wait for background research to complete
-
-    Typical usage pattern:
-    1. create_research_report("topic") → get job_id
-    2. wait_for_research_report(30) → wait 30 seconds
-    3. get_research_report("job_id") → check status
-    4. If still in progress, repeat steps 2-3
-
-    Recommended wait times:
-    - First check: 30-60 seconds (research is just starting)
-    - Subsequent checks: 30-45 seconds (research in progress)
-    - Near completion: 15-30 seconds (final synthesis)
-    </tool_usage_guidelines>
-
-    Args:
-        seconds: Number of seconds to wait (default: 30, max: 120 for reasonableness)
-
-    Returns:
-        Message indicating wait is complete and next action to take
-    """
-
-    # Clamp seconds to reasonable range
-    wait_seconds = max(5, min(seconds, 120))
-
-    try:
-        # Actually wait the specified time
-        await asyncio.sleep(wait_seconds)
-
-        return f"""⏳ Wait Complete!
-
-Waited {wait_seconds} seconds as requested.
-
-Next step: Call get_research_report("your_job_id") to check the current status of your research job.
-
-If the research is still in progress, you can call wait_for_research_report() again to wait before the next status check."""
-
-    except Exception as e:
-        return f"Error during wait: {str(e)}"
 
 
 @mcp.tool()
