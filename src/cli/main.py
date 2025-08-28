@@ -7,15 +7,10 @@ lead researchers and specialized subagents for comprehensive topic investigation
 
 import argparse
 import asyncio
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from strands.types.content import ContentBlock
 
-from src.research_orchestrator import ResearchOrchestrator
+from research_orchestrator import ResearchOrchestrator
 
 
 def extract_content_text(c: ContentBlock) -> str:
@@ -92,5 +87,9 @@ Examples:
         print(f"❌ Error during research: {e}")
 
 
-if __name__ == "__main__":
+def main_sync():
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    main_sync()

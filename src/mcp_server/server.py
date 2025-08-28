@@ -5,21 +5,17 @@ Provides MCP tools for comprehensive research orchestration using multi-agent sy
 """
 
 import asyncio
+
+# Redirect print statements to stderr to avoid breaking MCP JSON protocol
+import builtins
 import sys
 import threading
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Redirect print statements to stderr to avoid breaking MCP JSON protocol
-import builtins
 
 original_print = builtins.print
 
