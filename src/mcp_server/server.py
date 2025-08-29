@@ -251,7 +251,7 @@ async def create_research_report(topic: str) -> str:
     Perfect for any subject where you'd need multiple sources to give a truly complete answer - whether it's academic research, hobby deep-dives, professional strategies, or detailed how-to guides.
 
     This tool returns immediately with a job ID. Use get_research_report(job_id) to check status and retrieve results.
-    Research jobs typically take 3-5 minutes to complete for complex topics.
+    Research jobs typically take 15 minutes to complete for complex topics.
 
     Also use this tool for ANY comprehensive guides, strategy guides, or 'tell me everything about X' requests, even for topics like gaming, hobbies, or specialized interests.
     Gaming strategies, meta analysis, or evolving systems especially benefit from current research.
@@ -263,7 +263,7 @@ async def create_research_report(topic: str) -> str:
     - "Comprehensive overview of..."
 
     However, this tool is also expensive, so you MUST ASK the user for confirmation before running it.
-    When asking for confirmation, frame it as offering enhanced value, for example: "I can give you a quick overview from my knowledge, or run a comprehensive research report that will give you the most current information. The research takes 3-5 minutes but provides much more thorough coverage. Would you like me to run the full research?"
+    When asking for confirmation, frame it as offering enhanced value, for example: "I can give you a quick overview from my knowledge, or run a comprehensive research report that will give you the most current information. The research takes 15 minutes but provides much more thorough coverage. Would you like me to run the full research?"
 
     DO NOT use this tool for lifestyle advice, creative writing, or other opinion-based responses.
     </tool_usage_guidelines>
@@ -291,16 +291,16 @@ async def create_research_report(topic: str) -> str:
 Job ID: {job_id}
 Topic: {topic}
 
-Your research is now running in the background. This typically takes 3-5 minutes to complete.
+Your research is now running in the background. This typically takes 15 minutes to complete.
 
 Recommended workflow:
-1. Wait for research to start: wait_for_research_report(60)
+1. Wait for research to start: wait_for_research_report(90)
 2. Check status: get_research_report("{job_id}")
-3. If still in progress, repeat: wait_for_research_report(30) then get_research_report("{job_id}")
+3. If still in progress, repeat: wait_for_research_report(90) then get_research_report("{job_id}")
 
 The research will continue running even if you don't poll immediately.
 
-Next step: Call wait_for_research_report(60) to wait for research to begin, then check status."""
+Next step: Call wait_for_research_report(90) to wait for research to begin, then check status."""
 
     except Exception as e:
         return f"Error starting research job: {str(e)}"
@@ -323,7 +323,7 @@ async def get_research_report(job_id: str) -> str:
     - Monitor job status and estimated completion time
 
     Keep calling this tool with the same job_id until you receive a 'completed' status.
-    Typical research jobs take 3-5 minutes to complete.
+    Typical research jobs take 15 minutes to complete.
     </tool_usage_guidelines>
 
     <output_formatting_requirements>
@@ -384,7 +384,7 @@ Created: {created_at}
 
 Your research job is queued and will start shortly.
 
-Next step: Call wait_for_research_report(30) to wait, then get_research_report("{job_id}") to check status."""
+Next step: Call wait_for_research_report(90) to wait, then get_research_report("{job_id}") to check status."""
 
         elif status == JobStatus.IN_PROGRESS:
             started_at = job.get("started_at", "Unknown")
@@ -420,7 +420,7 @@ Started: {started_at}{progress_info}
 Research is actively running with multiple agents conducting comprehensive analysis.
 This can take up to 15 minutes for complex topics.
 
-Next step: Call wait_for_research_report(60) to wait, then get_research_report("{job_id}") to check progress again."""
+Next step: Call wait_for_research_report(90) to wait, then get_research_report("{job_id}") to check progress again."""
 
         elif status == JobStatus.COMPLETED:
             completed_at = job.get("completed_at", "Unknown")
@@ -482,14 +482,14 @@ async def wait_for_research_report(seconds: int = 30) -> str:
 
     Typical usage pattern:
     1. create_research_report("topic") → get job_id
-    2. wait_for_research_report(30) → wait 30 seconds
+    2. wait_for_research_report(90) → wait 90 seconds
     3. get_research_report("job_id") → check status
     4. If still in progress, repeat steps 2-3
 
     Recommended wait times:
     - First check: 30-60 seconds (research is just starting)
-    - Subsequent checks: 30-45 seconds (research in progress)
-    - Near completion: 15-30 seconds (final synthesis)
+    - Subsequent checks: 90-110 seconds (research in progress)
+    - Near completion: 30-45 seconds (final synthesis)
     </tool_usage_guidelines>
 
     Args:
