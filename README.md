@@ -95,41 +95,44 @@ sequenceDiagram
     participant Reviewer as Citation Reviewer
 
     User->>Orchestrator: "Research this topic"
-    
+
     Orchestrator->>Lead: Begin research
     Note over Lead: Breaks topic into subtopics
-    
+
     Lead->>ResearchTeam: "Research these subtopics"
-    
+
     par Parallel Research
         loop for each subtopic
             ResearchTeam->>Web: Search for current data
             Web-->>ResearchTeam: Latest information
         end
     end
-    
+
     Note over ResearchTeam: Consolidates findings internally
     ResearchTeam-->>Lead: Initial research package
-    
+
     opt follow-up research needed
         Note over Lead: Reviews findings, identifies deeper investigation areas
         Lead->>ResearchTeam: "Research these follow-up topics"
-        
+
         par Follow-up Research
             loop for follow-up topics
                 ResearchTeam->>Web: Search for additional depth
                 Web-->>ResearchTeam: Detailed information
             end
         end
-        
+
         Note over ResearchTeam: Consolidates follow-up findings
         ResearchTeam-->>Lead: Additional research package
     end
-    
+
+    Lead-->>Lead: Draft final research report
+
     Lead->>Reviewer: "Check citations"
     Reviewer-->>Lead: Citation feedback
-    
+
+    Lead-->>Lead: Revise final research report
     Lead-->>Orchestrator: Final research report
-    
+
     Orchestrator-->>User: Comprehensive research with citations
 ```
