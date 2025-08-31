@@ -93,11 +93,8 @@ sequenceDiagram
     participant Lead as Lead Researcher
     participant Cache as Search Cache
     participant Web as Web Search API
-    participant Agent1 as Research Agent 1
-    participant Agent2 as Research Agent 2
-    participant Agent3 as Research Agent 3
-    participant Agent4 as Research Agent 4
-    participant Agent5 as Research Agent 5
+    participant Pool as Research Agent Pool
+    participant Citations as Citation Processor
     participant Synthesis as Synthesis Agent
 
     Client->>Server: conduct_research(topic)
@@ -105,53 +102,43 @@ sequenceDiagram
     
     Orchestrator->>Lead: generate_subtopics(topic)
     Lead->>Cache: check_cache(topic)
-    Cache-->>Lead: cache_miss
-    Lead->>Web: search(topic)
-    Web-->>Lead: search_results
-    Lead->>Cache: store_results(topic, results)
-    Lead-->>Orchestrator: subtopics[1..5]
+    alt cache miss
+        Lead->>Web: search(topic)
+        Web-->>Lead: search_results
+        Lead->>Cache: store_results(topic, results)
+    else cache hit
+        Cache-->>Lead: cached_results
+    end
+    Lead-->>Orchestrator: subtopics[2..5]
     
-    par Parallel Research Phase
-        Orchestrator->>Agent1: research(subtopic_1)
-        Agent1->>Cache: check_cache(subtopic_1)
-        Cache-->>Agent1: cache_miss
-        Agent1->>Web: search(subtopic_1)
-        Web-->>Agent1: search_results
-        Agent1->>Cache: store_results(subtopic_1, results)
-        Agent1-->>Orchestrator: research_report_1
-    and
-        Orchestrator->>Agent2: research(subtopic_2)
-        Agent2->>Cache: check_cache(subtopic_2)
-        Cache-->>Agent2: cache_hit
-        Cache-->>Agent2: cached_results
-        Agent2-->>Orchestrator: research_report_2
-    and
-        Orchestrator->>Agent3: research(subtopic_3)
-        Agent3->>Cache: check_cache(subtopic_3)
-        Cache-->>Agent3: cache_miss
-        Agent3->>Web: search(subtopic_3)
-        Web-->>Agent3: search_results
-        Agent3->>Cache: store_results(subtopic_3, results)
-        Agent3-->>Orchestrator: research_report_3
-    and
-        Orchestrator->>Agent4: research(subtopic_4)
-        Agent4->>Cache: check_cache(subtopic_4)
-        Cache-->>Agent4: cache_miss
-        Agent4->>Web: search(subtopic_4)
-        Web-->>Agent4: search_results
-        Agent4->>Cache: store_results(subtopic_4, results)
-        Agent4-->>Orchestrator: research_report_4
-    and
-        Orchestrator->>Agent5: research(subtopic_5)
-        Agent5->>Cache: check_cache(subtopic_5)
-        Cache-->>Agent5: cache_miss
-        Agent5->>Web: search(subtopic_5)
-        Web-->>Agent5: search_results
-        Agent5->>Cache: store_results(subtopic_5, results)
-        Agent5-->>Orchestrator: research_report_5
+    loop for each subtopic
+        Orchestrator->>Pool: research(subtopic_n)
+        Pool->>Cache: check_cache(subtopic_n)
+        alt cache miss
+            Pool->>Web: search(subtopic_n)
+            Web-->>Pool: search_results
+            Pool->>Cache: store_results(subtopic_n, results)
+        else cache hit
+            Cache-->>Pool: cached_results
+        end
+        Pool-->>Orchestrator: research_report_n
     end
     
-    Orchestrator->>Synthesis: synthesize_reports(all_reports)
+    opt refinement needed
+        Orchestrator->>Lead: generate_additional_subtopics()
+        Lead-->>Orchestrator: refined_subtopics
+        loop refined research
+            Orchestrator->>Pool: research(refined_subtopic)
+            Pool->>Web: search(refined_subtopic)
+            Web-->>Pool: search_results
+            Pool-->>Orchestrator: refined_report
+        end
+    end
+    
+    Orchestrator->>Citations: process_citations(all_reports)
+    Citations-->>Orchestrator: formatted_citations
+    
+    Orchestrator->>Synthesis: synthesize_reports(reports, citations)
     Synthesis-->>Orchestrator: master_research_report
     
     Orchestrator-->>Server: complete_research_report
