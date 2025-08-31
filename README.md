@@ -90,8 +90,7 @@ sequenceDiagram
     participant User as User
     participant Orchestrator as Research Orchestrator
     participant Lead as Lead Researcher
-    participant Specialist as Research Specialist
-    participant Researchers as Research Team
+    participant ResearchTeam as Research Team
     participant Web as Web Search
     participant Reviewer as Citation Reviewer
 
@@ -100,41 +99,35 @@ sequenceDiagram
     Orchestrator->>Lead: Begin research
     Note over Lead: Breaks topic into subtopics
     
-    Lead->>Specialist: "Research these subtopics"
+    Lead->>ResearchTeam: "Research these subtopics"
     
     par Parallel Research
         loop for each subtopic
-            Specialist->>Researchers: "Find information about X"
-            Researchers->>Web: Search for current data
-            Web-->>Researchers: Latest information
-            Researchers-->>Specialist: Individual research findings
+            ResearchTeam->>Web: Search for current data
+            Web-->>ResearchTeam: Latest information
         end
     end
     
-    Note over Specialist: Consolidates findings internally
-    Specialist-->>Lead: Initial research package
+    Note over ResearchTeam: Consolidates findings internally
+    ResearchTeam-->>Lead: Initial research package
     
     opt follow-up research needed
         Note over Lead: Reviews findings, identifies deeper investigation areas
-        Lead->>Specialist: "Research these follow-up topics"
+        Lead->>ResearchTeam: "Research these follow-up topics"
         
         par Follow-up Research
             loop for follow-up topics
-                Specialist->>Researchers: "Find detailed information about Y"
-                Researchers->>Web: Search for additional depth
-                Web-->>Researchers: Detailed information
-                Researchers-->>Specialist: Follow-up research findings
+                ResearchTeam->>Web: Search for additional depth
+                Web-->>ResearchTeam: Detailed information
             end
         end
         
-        Note over Specialist: Consolidates follow-up findings
-        Specialist-->>Lead: Additional research package
+        Note over ResearchTeam: Consolidates follow-up findings
+        ResearchTeam-->>Lead: Additional research package
     end
     
-    opt quality check
-        Lead->>Reviewer: "Check citations"
-        Reviewer-->>Lead: Citation feedback
-    end
+    Lead->>Reviewer: "Check citations"
+    Reviewer-->>Lead: Citation feedback
     
     Lead-->>Orchestrator: Final research report
     
