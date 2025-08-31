@@ -135,11 +135,14 @@ sequenceDiagram
         end
     end
     
-    Orchestrator->>Citations: process_citations(all_reports)
+    Orchestrator->>Synthesis: merge_reports(all_reports)
+    Synthesis-->>Orchestrator: merged_content
+    
+    Orchestrator->>Citations: process_citations(merged_content)
     Citations-->>Orchestrator: formatted_citations
     
-    Orchestrator->>Synthesis: synthesize_reports(reports, citations)
-    Synthesis-->>Orchestrator: master_research_report
+    Orchestrator->>Lead: create_final_report(merged_content, citations)
+    Lead-->>Orchestrator: master_research_report
     
     Orchestrator-->>Server: complete_research_report
     Server-->>Client: research_report_with_citations
