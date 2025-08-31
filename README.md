@@ -114,8 +114,24 @@ sequenceDiagram
     end
     
     Note over Specialist: Consolidates findings internally
+    Specialist-->>Lead: Initial research package
     
-    Specialist-->>Lead: Research package
+    opt follow-up research needed
+        Note over Lead: Reviews findings, identifies deeper investigation areas
+        Lead->>Specialist: "Research these follow-up topics"
+        
+        par Follow-up Research
+            loop for follow-up topics
+                Specialist->>Researchers: "Find detailed information about Y"
+                Researchers->>Web: Search for additional depth
+                Web-->>Researchers: Detailed information
+                Researchers-->>Specialist: Follow-up research findings
+            end
+        end
+        
+        Note over Specialist: Consolidates follow-up findings
+        Specialist-->>Lead: Additional research package
+    end
     
     opt quality check
         Lead->>Reviewer: "Check citations"
