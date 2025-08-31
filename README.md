@@ -126,7 +126,7 @@ sequenceDiagram
         ResearchTeam-->>Lead: Additional research package
     end
 
-    Lead-->Lead: Draft final research report
+    Lead->>Lead: Draft final research report
 
     Lead->>Reviewer: "Check citations"
     Reviewer-->>Lead: Citation feedback
