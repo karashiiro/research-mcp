@@ -94,7 +94,6 @@ sequenceDiagram
     participant Specialist as Research Specialist
     participant Researchers as Research Team
     participant Web as Web Search
-    participant Editor as Report Editor
     participant Reviewer as Citation Reviewer
 
     User->>MCP: "Research this topic"
@@ -114,8 +113,7 @@ sequenceDiagram
         end
     end
     
-    Specialist->>Editor: "Combine these findings"
-    Editor-->>Specialist: Consolidated report
+    Note over Specialist: Consolidates findings internally
     
     Specialist-->>Lead: Research package
     
