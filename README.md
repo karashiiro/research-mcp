@@ -88,16 +88,16 @@ cat logs/research_results.log
 ```mermaid
 sequenceDiagram
     participant User as User
-    participant Coordinator as Research Coordinator
+    participant Orchestrator as Research Orchestrator
     participant Lead as Lead Researcher
     participant Specialist as Research Specialist
     participant Researchers as Research Team
     participant Web as Web Search
     participant Reviewer as Citation Reviewer
 
-    User->>Coordinator: "Research this topic"
+    User->>Orchestrator: "Research this topic"
     
-    Coordinator->>Lead: Begin research
+    Orchestrator->>Lead: Begin research
     Note over Lead: Breaks topic into subtopics
     
     Lead->>Specialist: "Research these subtopics"
@@ -136,7 +136,7 @@ sequenceDiagram
         Reviewer-->>Lead: Citation feedback
     end
     
-    Lead-->>Coordinator: Final research report
+    Lead-->>Orchestrator: Final research report
     
-    Coordinator-->>User: Comprehensive research with citations
+    Orchestrator-->>User: Comprehensive research with citations
 ```
