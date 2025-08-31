@@ -88,7 +88,6 @@ cat logs/research_results.log
 ```mermaid
 sequenceDiagram
     participant User as User
-    participant MCP as MCP Server
     participant Coordinator as Research Coordinator
     participant Lead as Lead Researcher
     participant Specialist as Research Specialist
@@ -96,8 +95,7 @@ sequenceDiagram
     participant Web as Web Search
     participant Reviewer as Citation Reviewer
 
-    User->>MCP: "Research this topic"
-    MCP->>Coordinator: Start research job
+    User->>Coordinator: "Research this topic"
     
     Coordinator->>Lead: Begin research
     Note over Lead: Breaks topic into subtopics
@@ -140,6 +138,5 @@ sequenceDiagram
     
     Lead-->>Coordinator: Final research report
     
-    Coordinator-->>MCP: Complete report
-    MCP-->>User: Comprehensive research with citations
+    Coordinator-->>User: Comprehensive research with citations
 ```
