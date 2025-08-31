@@ -91,57 +91,39 @@ sequenceDiagram
     participant Server as MCP Server
     participant Orchestrator as Research Orchestrator
     participant Lead as Lead Researcher
-    participant Cache as Search Cache
-    participant Web as Web Search API
+    participant SpecialistTool as streaming_research_specialist(tool)
     participant Pool as Research Agent Pool
-    participant Citations as Citation Processor
+    participant Web as Web Search API
     participant Synthesis as Synthesis Agent
+    participant ReviewerTool as citation_reviewer(tool)
 
     Client->>Server: conduct_research(topic)
     Server->>Orchestrator: create_research_job(topic)
     
-    Orchestrator->>Lead: generate_subtopics(topic)
-    Lead->>Cache: check_cache(topic)
-    alt cache miss
-        Lead->>Web: search(topic)
-        Web-->>Lead: search_results
-        Lead->>Cache: store_results(topic, results)
-    else cache hit
-        Cache-->>Lead: cached_results
-    end
-    Lead-->>Orchestrator: subtopics[2..5]
+    Orchestrator->>Lead: research(topic)
+    Note over Lead: Generates subtopics internally
     
-    loop for each subtopic
-        Orchestrator->>Pool: research(subtopic_n)
-        Pool->>Cache: check_cache(subtopic_n)
-        alt cache miss
+    Lead->>SpecialistTool: streaming_research_specialist(subtopic_queries)
+    
+    par Concurrent Research Phase
+        loop for each subtopic
+            SpecialistTool->>Pool: research(subtopic_n)
             Pool->>Web: search(subtopic_n)
             Web-->>Pool: search_results
-            Pool->>Cache: store_results(subtopic_n, results)
-        else cache hit
-            Cache-->>Pool: cached_results
-        end
-        Pool-->>Orchestrator: research_report_n
-    end
-    
-    opt refinement needed
-        Orchestrator->>Lead: generate_additional_subtopics()
-        Lead-->>Orchestrator: refined_subtopics
-        loop refined research
-            Orchestrator->>Pool: research(refined_subtopic)
-            Pool->>Web: search(refined_subtopic)
-            Web-->>Pool: search_results
-            Pool-->>Orchestrator: refined_report
+            Pool-->>SpecialistTool: raw_research_report_n
         end
     end
     
-    Orchestrator->>Synthesis: merge_reports(all_reports)
-    Synthesis-->>Orchestrator: merged_content
+    SpecialistTool->>Synthesis: consolidate_reports(all_reports)
+    Synthesis-->>SpecialistTool: synthesized_report
     
-    Orchestrator->>Citations: process_citations(merged_content)
-    Citations-->>Orchestrator: formatted_citations
+    SpecialistTool-->>Lead: consolidated_research_findings
     
-    Orchestrator->>Lead: create_final_report(merged_content, citations)
+    opt citation review needed
+        Lead->>ReviewerTool: citation_reviewer(draft_report)
+        ReviewerTool-->>Lead: citation_suggestions
+    end
+    
     Lead-->>Orchestrator: master_research_report
     
     Orchestrator-->>Server: complete_research_report
