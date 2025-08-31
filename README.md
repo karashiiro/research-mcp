@@ -87,45 +87,45 @@ cat logs/research_results.log
 
 ```mermaid
 sequenceDiagram
-    participant Client as MCP Client
-    participant Server as MCP Server
-    participant Orchestrator as Research Orchestrator
+    participant User as User
+    participant MCP as MCP Server
+    participant Coordinator as Research Coordinator
     participant Lead as Lead Researcher
-    participant SpecialistTool as streaming_research_specialist(tool)
-    participant Pool as Research Agent Pool
-    participant Web as Web Search API
-    participant Synthesis as Synthesis Agent
-    participant ReviewerTool as citation_reviewer(tool)
+    participant Specialist as Research Specialist
+    participant Researchers as Research Team
+    participant Web as Web Search
+    participant Editor as Report Editor
+    participant Reviewer as Citation Reviewer
 
-    Client->>Server: conduct_research(topic)
-    Server->>Orchestrator: create_research_job(topic)
+    User->>MCP: "Research this topic"
+    MCP->>Coordinator: Start research job
     
-    Orchestrator->>Lead: research(topic)
-    Note over Lead: Generates subtopics internally
+    Coordinator->>Lead: Begin research
+    Note over Lead: Breaks topic into subtopics
     
-    Lead->>SpecialistTool: streaming_research_specialist(subtopic_queries)
+    Lead->>Specialist: "Research these subtopics"
     
-    par Concurrent Research Phase
+    par Parallel Research
         loop for each subtopic
-            SpecialistTool->>Pool: research(subtopic_n)
-            Pool->>Web: search(subtopic_n)
-            Web-->>Pool: search_results
-            Pool-->>SpecialistTool: raw_research_report_n
+            Specialist->>Researchers: "Find information about X"
+            Researchers->>Web: Search for current data
+            Web-->>Researchers: Latest information
+            Researchers-->>Specialist: Individual research findings
         end
     end
     
-    SpecialistTool->>Synthesis: consolidate_reports(all_reports)
-    Synthesis-->>SpecialistTool: synthesized_report
+    Specialist->>Editor: "Combine these findings"
+    Editor-->>Specialist: Consolidated report
     
-    SpecialistTool-->>Lead: consolidated_research_findings
+    Specialist-->>Lead: Research package
     
-    opt citation review needed
-        Lead->>ReviewerTool: citation_reviewer(draft_report)
-        ReviewerTool-->>Lead: citation_suggestions
+    opt quality check
+        Lead->>Reviewer: "Check citations"
+        Reviewer-->>Lead: Citation feedback
     end
     
-    Lead-->>Orchestrator: master_research_report
+    Lead-->>Coordinator: Final research report
     
-    Orchestrator-->>Server: complete_research_report
-    Server-->>Client: research_report_with_citations
+    Coordinator-->>MCP: Complete report
+    MCP-->>User: Comprehensive research with citations
 ```
