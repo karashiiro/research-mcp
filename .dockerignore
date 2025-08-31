@@ -53,9 +53,7 @@ logs/
 cache/
 *.log
 
-# Documentation and README files
-README.md
-*.md
+# Documentation files (but keep README.md for build)
 CLAUDE.md
 
 # Test files

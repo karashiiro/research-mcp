@@ -8,7 +8,7 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies in a virtual environment
 RUN uv sync --frozen --no-cache
@@ -29,7 +29,6 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Copy application source code
 COPY src/ ./src/
-COPY cli/ ./cli/
 
 # Create required directories
 RUN mkdir -p logs cache && chown -R mcp:mcp /app
@@ -51,4 +50,4 @@ ENV PYTHONPATH="/app/src:/app"
 #   CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command to run the MCP server
-CMD ["python", "-m", "mcp_server.server"]
+CMD ["python", "-m", "src.mcp_server.server"]
